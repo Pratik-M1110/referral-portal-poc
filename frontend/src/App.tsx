@@ -1,63 +1,61 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Award, Building2, LogOut, MessageCircle, QrCode } from 'lucide-react'
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { apiOrigin, fetchMe } from './api'
+import { api, fetchMe, type Me } from './api'
+import BadgePage from './pages/Badge'
+import ChatPage from './pages/Chat'
+import ChatsPage from './pages/Chats'
+import CompaniesPage from './pages/Companies'
+import ProfilePage from './pages/Profile'
+import ReferralsPage from './pages/Referrals'
+import SignIn from './pages/SignIn'
+import { Avatar, ErrorNote, Logo, Spinner } from './ui'
 
-const seekerTabs = [
-  { to: '/companies', label: 'Companies' },
-  { to: '/chats', label: 'Chats' },
-  { to: '/badge', label: 'Badge' },
-  { to: '/referrals', label: 'Referrals' },
+const tabs = [
+  { to: '/companies', label: 'Companies', icon: Building2, color: 'text-gblue' },
+  { to: '/chats', label: 'Chats', icon: MessageCircle, color: 'text-gred' },
+  { to: '/badge', label: 'Badge', icon: QrCode, color: 'text-yellow-600' },
+  { to: '/referrals', label: 'Referrals', icon: Award, color: 'text-ggreen' },
 ]
 
-function SignIn() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-4 px-6">
-      <h1 className="text-3xl font-bold">Referral Portal</h1>
-      <p className="text-muted">DevFest · 13 December</p>
-      <p className="text-muted">Meet companies, get referred, or refer others.</p>
-      <a
-        href={`${apiOrigin}/oauth2/authorization/google`}
-        className="rounded-xl bg-seeker py-3 text-center font-semibold text-white"
-      >
-        Continue with Google
-      </a>
-      <a
-        href={`${apiOrigin}/oauth2/authorization/github`}
-        className="rounded-xl bg-ink py-3 text-center font-semibold text-white"
-      >
-        Continue with GitHub
-      </a>
-      <p className="text-sm text-muted">
-        By continuing you agree to share your name and email so we can create your profile.
-      </p>
-    </main>
-  )
-}
-
-function Shell() {
+function Shell({ me }: { me: Me }) {
+  const qc = useQueryClient()
+  const signOut = async () => {
+    try {
+      await api('/logout', { method: 'POST' })
+    } finally {
+      qc.clear()
+      window.location.assign('/')
+    }
+  }
   return (
     <div className="mx-auto flex min-h-screen max-w-[430px] flex-col">
-      <header className="flex items-center justify-between px-5 pt-5">
-        <span className="font-bold">Referral Portal</span>
-        <NavLink to="/profile" className="text-sm font-semibold text-seeker">
-          Profile
-        </NavLink>
+      <header className="sticky top-0 z-10 flex items-center justify-between bg-page/80 px-5 py-4 backdrop-blur">
+        <Logo />
+        <div className="flex items-center gap-1">
+          <NavLink to="/profile" aria-label="Profile" className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-line/60">
+            <Avatar name={me.name} size="sm" />
+            <span className="text-sm font-semibold text-gblue">Profile</span>
+          </NavLink>
+          <button onClick={signOut} aria-label="Sign out" className="rounded-full p-2 text-muted hover:bg-line/60">
+            <LogOut size={18} />
+          </button>
+        </div>
       </header>
-      <main className="flex-1 px-5 py-4">
+      <main className="flex-1 px-5 pb-6 pt-2">
         <Outlet />
       </main>
-      <nav className="sticky bottom-0 grid grid-cols-4 gap-1 border-t border-slate-200 bg-page px-2 py-2">
-        {seekerTabs.map((tab) => (
+      <nav className="sticky bottom-0 z-10 grid grid-cols-4 gap-1 border-t border-line bg-white/90 px-2 pb-3 pt-2 backdrop-blur">
+        {tabs.map(({ to, label, icon: Icon, color }) => (
           <NavLink
-            key={tab.to}
-            to={tab.to}
+            key={to}
+            to={to}
             className={({ isActive }) =>
-              `rounded-xl py-2 text-center text-sm font-semibold ${
-                isActive ? 'bg-white text-seeker' : 'text-muted'
-              }`
+              `flex flex-col items-center gap-1 rounded-2xl py-2 text-xs font-semibold transition ${isActive ? `bg-page ${color}` : 'text-muted'}`
             }
           >
-            {tab.label}
+            <Icon size={20} />
+            {label}
           </NavLink>
         ))}
       </nav>
@@ -65,31 +63,30 @@ function Shell() {
   )
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <section>
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <p className="mt-2 text-muted">Coming in a later slice.</p>
-    </section>
-  )
-}
-
 export default function App() {
   const { data: me, isPending, isError } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
-  if (isPending) return <p className="p-6 text-muted">Loading…</p>
-  if (isError) return <p className="p-6 text-muted">Cannot reach the server. Is the backend running?</p>
-  if (!me) return <SignIn />
+  if (isPending) return <Spinner />
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-[430px] p-6">
+        <ErrorNote message="Cannot reach the server. Please check that the backend is running and refresh." />
+      </div>
+    )
+  }
+  if (!me) return <SignIn loginError={new URLSearchParams(window.location.search).has('loginError')} />
 
   return (
     <Routes>
-      <Route element={<Shell />}>
-        <Route index element={<Navigate to="/companies" replace />} />
-        <Route path="companies" element={<Placeholder title="Companies" />} />
-        <Route path="chats" element={<Placeholder title="Chats" />} />
-        <Route path="badge" element={<Placeholder title="Your badge" />} />
-        <Route path="referrals" element={<Placeholder title="My referrals" />} />
-        <Route path="profile" element={<Placeholder title="Your profile" />} />
+      <Route path="chats/:id" element={<ChatPage />} />
+      <Route element={<Shell me={me} />}>
+        <Route index element={<Navigate to={me.hasProfile ? '/companies' : '/profile'} replace />} />
+        <Route path="profile" element={<ProfilePage me={me} />} />
+        <Route path="companies" element={me.hasProfile ? <CompaniesPage /> : <Navigate to="/profile" replace />} />
+        <Route path="chats" element={<ChatsPage />} />
+        <Route path="badge" element={<BadgePage me={me} />} />
+        <Route path="referrals" element={<ReferralsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )

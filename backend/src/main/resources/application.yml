@@ -16,6 +16,17 @@ spring:
       ddl-auto: none # Flyway owns the schema
   flyway:
     enabled: true
+  mail:
+    host: ${MAIL_HOST:smtp-relay.brevo.com}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   security:
     oauth2:
       client:
@@ -30,7 +41,9 @@ spring:
             scope: read:user,user:email
 
 app:
+  seed-demo: ${SEED_DEMO:false} # sample companies, people and a welcome inbox; never enable for the real launch
   frontend-url: ${APP_FRONTEND_URL:/} # dev: http://localhost:5173
+  mail-from: ${MAIL_FROM:}
 
 server:
   port: ${PORT:8080}
