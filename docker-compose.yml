@@ -1,0 +1,22 @@
+# Local development database only. Host port 3307 avoids clashing with a local MySQL on 3306.
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: referral-portal-mysql
+    environment:
+      MYSQL_DATABASE: referral_portal
+      MYSQL_USER: referral
+      MYSQL_PASSWORD: referral_local
+      MYSQL_ROOT_PASSWORD: root_local
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql_data:
