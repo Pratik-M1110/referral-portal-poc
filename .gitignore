@@ -16,3 +16,9 @@ backups/
 *.iml
 .DS_Store
 Thumbs.db
+
+/CLAUDE.md
+/README.md
+/Referral Portal*Screen Ideas.pdf
+/docs/MVP.md
+/frontend/README.md
