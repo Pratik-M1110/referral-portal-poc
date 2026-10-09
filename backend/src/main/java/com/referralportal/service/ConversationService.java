@@ -1,8 +1,10 @@
-package com.referralportal.chat;
+package com.referralportal.service;
 
-import com.referralportal.company.RequestBudget;
+import com.referralportal.repository.ConversationRepository;
+import com.referralportal.service.RequestBudget;
+import com.referralportal.repository.ConversationRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.user.UserService;
+import com.referralportal.service.UserService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,7 +23,7 @@ import static com.referralportal.chat.ConversationDtos.MessageView;
 import static com.referralportal.chat.ConversationDtos.ThreadView;
 
 @Service
-class ConversationService {
+public class ConversationService {
 
     static final int MESSAGE_CAP = 20;
 
@@ -31,7 +33,7 @@ class ConversationService {
     private final RequestBudget budget;
     private final boolean seedDemo;
 
-    ConversationService(UserService users, ConversationRepository conversations, TransactionTemplate transactions,
+    public ConversationService(UserService users, ConversationRepository conversations, TransactionTemplate transactions,
             RequestBudget budget, @Value("${app.seed-demo:false}") boolean seedDemo) {
         this.users = users;
         this.conversations = conversations;
@@ -40,19 +42,19 @@ class ConversationService {
         this.seedDemo = seedDemo;
     }
 
-    List<ConversationView> list(Authentication auth) {
+    public List<ConversationView> list(Authentication auth) {
         CurrentUser user = users.current(auth);
         return conversations.findForUser(user.id());
     }
 
-    ThreadView thread(Authentication auth, long conversationId) {
+    public ThreadView thread(Authentication auth, long conversationId) {
         CurrentUser user = users.current(auth);
         ConversationView conversation = load(conversationId, user.id());
         List<MessageView> messages = conversations.findMessages(conversationId, user.id());
         return new ThreadView(conversation, MESSAGE_CAP, messages);
     }
 
-    Map<String, Object> send(Authentication auth, long conversationId, MessageInput input) {
+    public Map<String, Object> send(Authentication auth, long conversationId, MessageInput input) {
         CurrentUser user = users.current(auth);
         ConversationView conversation = load(conversationId, user.id());
         if (!"accepted".equals(conversation.status())) {
@@ -76,7 +78,7 @@ class ConversationService {
         return Map.of("messageCount", used, "messageCap", MESSAGE_CAP);
     }
 
-    Map<String, Object> request(Authentication auth, MeetRequest input) {
+    public Map<String, Object> request(Authentication auth, MeetRequest input) {
         CurrentUser seeker = users.current(auth);
         if (input.referrerId() == seeker.id()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot request yourself.");
@@ -110,7 +112,7 @@ class ConversationService {
         }
     }
 
-    Map<String, Object> accept(Authentication auth, long conversationId) {
+    public Map<String, Object> accept(Authentication auth, long conversationId) {
         CurrentUser user = users.current(auth);
         ConversationView conversation = decidable(user, conversationId);
         if ("seeker".equals(conversation.initiatedBy()) && "referrer".equals(conversation.myRole())) {
@@ -124,7 +126,7 @@ class ConversationService {
         return Map.of("status", "accepted");
     }
 
-    Map<String, Object> decline(Authentication auth, long conversationId) {
+    public Map<String, Object> decline(Authentication auth, long conversationId) {
         CurrentUser user = users.current(auth);
         decidable(user, conversationId);
         conversations.decline(conversationId);

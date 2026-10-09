@@ -65,6 +65,15 @@ export type Referral = {
 
 export type Badge = { name: string; token: string }
 
+export type ReferrerSettings = {
+  verified: boolean
+  workEmail: string | null
+  companyName: string | null
+  openToMeet: boolean
+  slotCapacity: number
+  referralLimit: number
+}
+
 // Dev builds point sign-in links at Spring Boot directly (see .env.development); production is same-origin.
 export const apiOrigin: string = import.meta.env.VITE_API_ORIGIN ?? ''
 

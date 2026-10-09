@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, type Me, type Profile as ProfileData } from '../api'
+import { api, type Me, type Profile as ProfileData, type ReferrerSettings } from '../api'
 import { Button, Card, Chip, ErrorNote, PageTitle, Spinner } from '../ui'
 
 const LOOKING_FOR = ['Frontend', 'Backend', 'Full Stack', 'Mobile', 'Data', 'ML / AI', 'DevOps', 'Cloud', 'QA', 'Design']
@@ -66,12 +66,30 @@ export default function ProfilePage({ me }: { me: Me }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { data, isPending } = useQuery({ queryKey: ['profile'], queryFn: () => api<ProfileData>('/api/me/profile') })
+  const { data: referrerSettings } = useQuery({
+    queryKey: ['referrer-settings'],
+    queryFn: () => api<ReferrerSettings>('/api/referrer/settings'),
+  })
   const [form, setForm] = useState<ProfileData | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [workEmail, setWorkEmail] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [openToMeet, setOpenToMeet] = useState(false)
+  const [slotCapacity, setSlotCapacity] = useState(3)
+  const [referralLimit, setReferralLimit] = useState(10)
 
   useEffect(() => {
     if (data) setForm(data)
   }, [data])
+
+  useEffect(() => {
+    if (!referrerSettings) return
+    setWorkEmail(referrerSettings.workEmail ?? '')
+    setOpenToMeet(referrerSettings.openToMeet)
+    setSlotCapacity(referrerSettings.slotCapacity)
+    setReferralLimit(referrerSettings.referralLimit)
+  }, [referrerSettings])
 
   const save = useMutation({
     mutationFn: (p: ProfileData) =>
@@ -99,6 +117,41 @@ export default function ProfilePage({ me }: { me: Me }) {
     onSuccess: () => {
       qc.clear()
       window.location.assign('/')
+    },
+  })
+
+  const startVerification = useMutation({
+    mutationFn: () => api<{ sent: boolean }>('/api/referrer/verify/start', {
+      method: 'POST',
+      body: { workEmail },
+    }),
+    onSuccess: () => {
+      setCodeSent(true)
+      setVerificationCode('')
+    },
+  })
+
+  const confirmVerification = useMutation({
+    mutationFn: () => api<ReferrerSettings>('/api/referrer/verify/confirm', {
+      method: 'POST',
+      body: { workEmail, code: verificationCode },
+    }),
+    onSuccess: async () => {
+      setCodeSent(false)
+      setVerificationCode('')
+      await qc.invalidateQueries({ queryKey: ['me'] })
+      await qc.invalidateQueries({ queryKey: ['referrer-settings'] })
+    },
+  })
+
+  const saveReferrerSettings = useMutation({
+    mutationFn: () => api<ReferrerSettings>('/api/referrer/settings', {
+      method: 'PUT',
+      body: { openToMeet, slotCapacity, referralLimit },
+    }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['referrer-settings'] })
+      await qc.invalidateQueries({ queryKey: ['me'] })
     },
   })
 
@@ -173,12 +226,78 @@ export default function ProfilePage({ me }: { me: Me }) {
         </label>
       </Card>
 
-      {me.isReferrer ? (
-        <Chip tone={3}>Work email verified</Chip>
+      {referrerSettings?.verified ? (
+        <Card className="bg-referrer-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-bold text-referrer">Referrer at {referrerSettings.companyName}</p>
+              <p className="text-sm text-muted">{referrerSettings.workEmail}</p>
+            </div>
+            <Chip tone={3}>Verified</Chip>
+          </div>
+          <label className="mt-4 flex items-start gap-3 text-sm">
+            <input type="checkbox" checked={openToMeet} onChange={(event) => setOpenToMeet(event.target.checked)} className="mt-1 h-4 w-4 accent-ggreen" />
+            <span>
+              <span className="font-bold">Open to meet</span>
+              <span className="block text-muted">Let seekers request a conversation with you.</span>
+            </span>
+          </label>
+          <label className="mt-4 block text-sm font-semibold" htmlFor="slot-capacity">Conversation slots</label>
+          <input id="slot-capacity" type="number" min={1} max={10} value={slotCapacity} onChange={(event) => setSlotCapacity(Number(event.target.value))} className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen" />
+          <label className="mt-3 block text-sm font-semibold" htmlFor="referral-limit">Referral limit</label>
+          <input id="referral-limit" type="number" min={1} max={10} value={referralLimit} onChange={(event) => setReferralLimit(Number(event.target.value))} className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen" />
+          <ErrorNote message={saveReferrerSettings.error?.message ?? null} />
+          <Button disabled={saveReferrerSettings.isPending} onClick={() => saveReferrerSettings.mutate()} className="mt-4">
+            {saveReferrerSettings.isPending ? 'Saving…' : 'Save referrer settings'}
+          </Button>
+        </Card>
       ) : (
         <Card className="bg-referrer-soft">
-          <p className="font-bold text-referrer">Work at a company?</p>
-          <p className="text-sm text-muted">Verify your work email to refer people too. Coming in the next update.</p>
+          <p className="font-bold text-referrer">Become a referrer</p>
+          <p className="text-sm text-muted">Verify your work email to refer people. You can still use your seeker profile without verifying.</p>
+          <label className="mt-3 block text-sm font-semibold" htmlFor="work-email">Work email</label>
+          <input
+            id="work-email"
+            type="email"
+            required
+            maxLength={190}
+            value={workEmail}
+            onChange={(event) => setWorkEmail(event.target.value)}
+            disabled={codeSent || startVerification.isPending}
+            placeholder="you@company.com"
+            className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen disabled:opacity-60"
+          />
+          {codeSent && (
+            <>
+              <p className="mt-2 text-sm text-muted">Enter the 6-digit code sent to {workEmail}. It expires in 10 minutes.</p>
+              <label className="mt-3 block text-sm font-semibold" htmlFor="verification-code">Verification code</label>
+              <input
+                id="verification-code"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm tracking-widest outline-none focus:border-ggreen"
+              />
+            </>
+          )}
+          <ErrorNote message={startVerification.error?.message ?? confirmVerification.error?.message ?? null} />
+          {codeSent ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button disabled={verificationCode.length !== 6 || confirmVerification.isPending} onClick={() => confirmVerification.mutate()}>
+                {confirmVerification.isPending ? 'Verifying…' : 'Verify email'}
+              </Button>
+              <Button variant="outline" disabled={startVerification.isPending} onClick={() => startVerification.mutate()}>
+                {startVerification.isPending ? 'Sending…' : 'Resend code'}
+              </Button>
+              <Button variant="ghost" onClick={() => setCodeSent(false)}>Change email</Button>
+            </div>
+          ) : (
+            <Button className="mt-4" disabled={!workEmail.includes('@') || startVerification.isPending} onClick={() => startVerification.mutate()}>
+              {startVerification.isPending ? 'Sending…' : 'Send verification code'}
+            </Button>
+          )}
         </Card>
       )}
 

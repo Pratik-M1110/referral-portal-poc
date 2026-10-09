@@ -1,6 +1,10 @@
-package com.referralportal.user;
+package com.referralportal.service;
 
 import com.referralportal.demo.DemoDataSeeder;
+import com.referralportal.repository.UserRepository;
+import com.referralportal.user.CurrentUser;
+import com.referralportal.repository.UserRepository;
+import com.referralportal.user.CurrentUser;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.Objects;

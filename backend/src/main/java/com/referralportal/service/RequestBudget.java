@@ -1,5 +1,6 @@
-package com.referralportal.company;
+package com.referralportal.service;
 
+import com.referralportal.repository.RequestBudgetRepository;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -9,7 +10,7 @@ public class RequestBudget {
 
     private final RequestBudgetRepository requests;
 
-    RequestBudget(RequestBudgetRepository requests) {
+    public RequestBudget(RequestBudgetRepository requests) {
         this.requests = requests;
     }
 
