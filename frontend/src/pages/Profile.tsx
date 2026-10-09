@@ -160,6 +160,7 @@ export default function ProfilePage({ me }: { me: Me }) {
 
   return (
     <form
+      noValidate
       onSubmit={(e) => {
         e.preventDefault()
         save.mutate(form)
