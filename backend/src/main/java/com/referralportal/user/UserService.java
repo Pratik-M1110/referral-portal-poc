@@ -7,9 +7,6 @@ import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -23,14 +20,14 @@ public class UserService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final JdbcClient jdbc;
+    private final UserRepository users;
     private final TransactionTemplate tx;
     private final DemoDataSeeder demo;
     private final boolean seedDemo;
 
-    public UserService(JdbcClient jdbc, TransactionTemplate tx, DemoDataSeeder demo,
+    public UserService(UserRepository users, TransactionTemplate tx, DemoDataSeeder demo,
             @Value("${app.seed-demo:false}") boolean seedDemo) {
-        this.jdbc = jdbc;
+        this.users = users;
         this.tx = tx;
         this.demo = demo;
         this.seedDemo = seedDemo;
@@ -44,32 +41,24 @@ public class UserService {
         String provider = token.getAuthorizedClientRegistrationId();
         String email = emailOf(principal, provider);
         String name = nameOf(principal);
-        Long id = findId(email);
+        Long id = users.findIdByEmail(email);
         if (id == null) {
             id = create(name, email, provider);
         }
         return new CurrentUser(id, name, email, provider);
     }
 
-    private Long findId(String email) {
-        return jdbc.sql("SELECT id FROM users WHERE email = ?").param(email).query(Long.class).optional().orElse(null);
-    }
-
     private long create(String name, String email, String provider) {
         try {
             return Objects.requireNonNull(tx.execute(status -> {
-                KeyHolder keys = new GeneratedKeyHolder();
-                jdbc.sql("INSERT INTO users (name, email, auth_provider, consent_at) VALUES (?, ?, ?, NOW())")
-                        .params(name, email, provider).update(keys);
-                long id = Objects.requireNonNull(keys.getKey()).longValue();
-                jdbc.sql("INSERT INTO badges (user_id, qr_token) VALUES (?, ?)").params(id, newToken()).update();
+                long id = users.createAccount(name, email, provider, newToken());
                 if (seedDemo) {
                     demo.seedWelcome(id);
                 }
                 return id;
             }));
         } catch (DuplicateKeyException e) {
-            return Objects.requireNonNull(findId(email));
+            return Objects.requireNonNull(users.findIdByEmail(email));
         }
     }
 
