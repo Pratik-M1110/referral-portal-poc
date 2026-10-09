@@ -27,4 +27,11 @@ class UserRepository {
         jdbc.sql("INSERT INTO badges (user_id, qr_token) VALUES (?, ?)").params(id, qrToken).update();
         return id;
     }
+
+    void deleteAccount(long userId) {
+        jdbc.sql("DELETE FROM conversations WHERE seeker_id = ? OR referrer_id = ?").params(userId, userId).update();
+        jdbc.sql("DELETE FROM reviews WHERE referrer_id = ? OR candidate_id = ?").params(userId, userId).update();
+        jdbc.sql("DELETE FROM referrals WHERE referrer_id = ? OR candidate_id = ?").params(userId, userId).update();
+        jdbc.sql("DELETE FROM users WHERE id = ?").param(userId).update();
+    }
 }
