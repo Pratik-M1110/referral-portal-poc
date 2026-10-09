@@ -1,5 +1,6 @@
 package com.referralportal.user;
 
+import com.referralportal.repository.UserRepository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.UUID;

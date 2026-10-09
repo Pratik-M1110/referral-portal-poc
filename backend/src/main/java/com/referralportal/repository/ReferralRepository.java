@@ -1,4 +1,4 @@
-package com.referralportal.referral;
+package com.referralportal.repository;
 
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -7,15 +7,15 @@ import org.springframework.stereotype.Repository;
 import static com.referralportal.referral.ReferralDtos.ReferralView;
 
 @Repository
-class ReferralRepository {
+public class ReferralRepository {
 
     private final JdbcClient jdbc;
 
-    ReferralRepository(JdbcClient jdbc) {
+    public ReferralRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
-    List<ReferralView> findReceivedByCandidateId(long candidateId) {
+    public List<ReferralView> findReceivedByCandidateId(long candidateId) {
         return jdbc.sql("""
                 SELECT r.id, co.name AS company_name, u.name AS referrer_name, ro.title AS role_title, r.status, r.updated_at
                 FROM referrals r

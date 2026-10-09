@@ -1,5 +1,9 @@
-package com.referralportal.user;
+package com.referralportal.service;
 
+import com.referralportal.repository.UserRepository;
+import com.referralportal.user.CurrentUser;
+import com.referralportal.repository.UserRepository;
+import com.referralportal.user.CurrentUser;
 import java.util.Objects;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -12,7 +16,7 @@ public class AccountService {
     private final UserRepository userRepository;
     private final TransactionTemplate transactions;
 
-    AccountService(UserService users, UserRepository userRepository, TransactionTemplate transactions) {
+    public AccountService(UserService users, UserRepository userRepository, TransactionTemplate transactions) {
         this.users = users;
         this.userRepository = userRepository;
         this.transactions = transactions;

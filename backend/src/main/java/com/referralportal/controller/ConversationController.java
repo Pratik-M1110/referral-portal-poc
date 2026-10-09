@@ -1,5 +1,7 @@
-package com.referralportal.chat;
+package com.referralportal.controller;
 
+import com.referralportal.service.ConversationService;
+import com.referralportal.service.ConversationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -16,41 +18,41 @@ import static com.referralportal.chat.ConversationDtos.MessageInput;
 import static com.referralportal.chat.ConversationDtos.ThreadView;
 
 @RestController
-class ConversationController {
+public class ConversationController {
 
     private final ConversationService conversations;
 
-    ConversationController(ConversationService conversations) {
+    public ConversationController(ConversationService conversations) {
         this.conversations = conversations;
     }
 
     @GetMapping("/api/conversations")
-    List<ConversationView> list(Authentication auth) {
+    public List<ConversationView> list(Authentication auth) {
         return conversations.list(auth);
     }
 
     @GetMapping("/api/conversations/{id}/messages")
-    ThreadView thread(Authentication auth, @PathVariable long id) {
+    public ThreadView thread(Authentication auth, @PathVariable long id) {
         return conversations.thread(auth, id);
     }
 
     @PostMapping("/api/conversations/{id}/messages")
-    Map<String, Object> send(Authentication auth, @PathVariable long id, @Valid @RequestBody MessageInput input) {
+    public Map<String, Object> send(Authentication auth, @PathVariable long id, @Valid @RequestBody MessageInput input) {
         return conversations.send(auth, id, input);
     }
 
     @PostMapping("/api/conversations")
-    Map<String, Object> request(Authentication auth, @Valid @RequestBody MeetRequest input) {
+    public Map<String, Object> request(Authentication auth, @Valid @RequestBody MeetRequest input) {
         return conversations.request(auth, input);
     }
 
     @PostMapping("/api/conversations/{id}/accept")
-    Map<String, Object> accept(Authentication auth, @PathVariable long id) {
+    public Map<String, Object> accept(Authentication auth, @PathVariable long id) {
         return conversations.accept(auth, id);
     }
 
     @PostMapping("/api/conversations/{id}/decline")
-    Map<String, Object> decline(Authentication auth, @PathVariable long id) {
+    public Map<String, Object> decline(Authentication auth, @PathVariable long id) {
         return conversations.decline(auth, id);
     }
 }

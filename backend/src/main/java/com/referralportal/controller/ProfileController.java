@@ -1,5 +1,7 @@
-package com.referralportal.profile;
+package com.referralportal.controller;
 
+import com.referralportal.service.ProfileService;
+import com.referralportal.service.ProfileService;
 import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
@@ -13,21 +15,21 @@ import static com.referralportal.profile.ProfileDtos.ProfileView;
 
 @RestController
 @Validated
-class ProfileController {
+public class ProfileController {
 
     private final ProfileService profiles;
 
-    ProfileController(ProfileService profiles) {
+    public ProfileController(ProfileService profiles) {
         this.profiles = profiles;
     }
 
     @GetMapping("/api/me/profile")
-    ProfileView get(Authentication auth) {
+    public ProfileView get(Authentication auth) {
         return profiles.get(auth);
     }
 
     @PutMapping("/api/me/profile")
-    Map<String, Boolean> save(Authentication auth, @jakarta.validation.Valid @RequestBody ProfileInput input) {
+    public Map<String, Boolean> save(Authentication auth, @jakarta.validation.Valid @RequestBody ProfileInput input) {
         return profiles.save(auth, input);
     }
 }

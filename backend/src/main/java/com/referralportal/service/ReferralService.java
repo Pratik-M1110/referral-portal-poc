@@ -1,7 +1,10 @@
-package com.referralportal.referral;
+package com.referralportal.service;
 
+import com.referralportal.referral.ReferralDtos;
+import com.referralportal.repository.ReferralRepository;
+import com.referralportal.repository.ReferralRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.user.UserService;
+import com.referralportal.service.UserService;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -9,17 +12,17 @@ import org.springframework.stereotype.Service;
 import static com.referralportal.referral.ReferralDtos.ReferralView;
 
 @Service
-class ReferralService {
+public class ReferralService {
 
     private final UserService users;
     private final ReferralRepository referrals;
 
-    ReferralService(UserService users, ReferralRepository referrals) {
+    public ReferralService(UserService users, ReferralRepository referrals) {
         this.users = users;
         this.referrals = referrals;
     }
 
-    List<ReferralView> received(Authentication auth) {
+    public List<ReferralView> received(Authentication auth) {
         CurrentUser user = users.current(auth);
         return referrals.findReceivedByCandidateId(user.id());
     }

@@ -1,4 +1,4 @@
-package com.referralportal.company;
+package com.referralportal.repository;
 
 import com.referralportal.common.ChipLists;
 import java.util.ArrayList;
@@ -12,20 +12,20 @@ import static com.referralportal.company.CompanyDtos.Person;
 import static com.referralportal.company.CompanyDtos.RoleView;
 
 @Repository
-class CompanyRepository {
+public class CompanyRepository {
 
     private final JdbcClient jdbc;
 
-    CompanyRepository(JdbcClient jdbc) {
+    public CompanyRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
-    Set<Long> findWishlistedCompanyIds(long seekerId) {
+    public Set<Long> findWishlistedCompanyIds(long seekerId) {
         return Set.copyOf(jdbc.sql("SELECT company_id FROM wishlists WHERE seeker_id = ?").param(seekerId)
                 .query(Long.class).list());
     }
 
-    List<CompanyView> findCompanies(long seekerId, Set<Long> wishlistedIds) {
+    public List<CompanyView> findCompanies(long seekerId, Set<Long> wishlistedIds) {
         List<CompanyView> companies = new ArrayList<>();
         List<CompanyRow> rows = jdbc.sql("SELECT id, name, email_domain, booth_label, is_sponsor FROM companies ORDER BY is_sponsor DESC, name")
                 .query((rs, n) -> new CompanyRow(rs.getLong("id"), rs.getString("name"), rs.getString("email_domain"),
@@ -53,29 +53,29 @@ class CompanyRepository {
         return companies;
     }
 
-    boolean existsById(long companyId) {
+    public boolean existsById(long companyId) {
         return jdbc.sql("SELECT COUNT(*) FROM companies WHERE id = ?").param(companyId).query(Long.class).single() > 0;
     }
 
-    boolean isVerifiedOwnCompany(long userId, long companyId) {
+    public boolean isVerifiedOwnCompany(long userId, long companyId) {
         return jdbc.sql("SELECT COUNT(*) FROM referrer_profiles WHERE user_id = ? AND company_id = ? AND verified_at IS NOT NULL")
                 .params(userId, companyId).query(Long.class).single() > 0;
     }
 
-    boolean isWishlisted(long seekerId, long companyId) {
+    public boolean isWishlisted(long seekerId, long companyId) {
         return jdbc.sql("SELECT COUNT(*) FROM wishlists WHERE seeker_id = ? AND company_id = ?")
                 .params(seekerId, companyId).query(Long.class).single() > 0;
     }
 
-    long countWishlistItems(long seekerId) {
+    public long countWishlistItems(long seekerId) {
         return jdbc.sql("SELECT COUNT(*) FROM wishlists WHERE seeker_id = ?").param(seekerId).query(Long.class).single();
     }
 
-    void addToWishlist(long seekerId, long companyId) {
+    public void addToWishlist(long seekerId, long companyId) {
         jdbc.sql("INSERT IGNORE INTO wishlists (seeker_id, company_id) VALUES (?, ?)").params(seekerId, companyId).update();
     }
 
-    void removeFromWishlist(long seekerId, long companyId) {
+    public void removeFromWishlist(long seekerId, long companyId) {
         jdbc.sql("DELETE FROM wishlists WHERE seeker_id = ? AND company_id = ?").params(seekerId, companyId).update();
     }
 

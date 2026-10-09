@@ -1,6 +1,7 @@
-package com.referralportal.profile;
+package com.referralportal.repository;
 
 import com.referralportal.common.ChipLists;
+import com.referralportal.profile.ProfileDtos;
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -8,15 +9,15 @@ import org.springframework.stereotype.Repository;
 import static com.referralportal.profile.ProfileDtos.ProfileView;
 
 @Repository
-class ProfileRepository {
+public class ProfileRepository {
 
     private final JdbcClient jdbc;
 
-    ProfileRepository(JdbcClient jdbc) {
+    public ProfileRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
-    ProfileView findByUserId(long userId) {
+    public ProfileView findByUserId(long userId) {
         return jdbc.sql("""
                 SELECT pitch, experience_level, CAST(skills AS CHAR) AS skills, CAST(roles_wanted AS CHAR) AS roles_wanted,
                        github_url, linkedin_url, hide_from_my_company FROM profiles WHERE user_id = ?""")
@@ -29,7 +30,7 @@ class ProfileRepository {
                 .orElse(new ProfileView("", "fresher", List.of(), List.of(), "", "", true, false));
     }
 
-    void save(long userId, ProfileDtos.ProfileInput input, List<String> skills, List<String> roles) {
+    public void save(long userId, ProfileDtos.ProfileInput input, List<String> skills, List<String> roles) {
         jdbc.sql("""
                 INSERT INTO profiles (user_id, pitch, experience_level, skills, roles_wanted, github_url, linkedin_url, hide_from_my_company)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)

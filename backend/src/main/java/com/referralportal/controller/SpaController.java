@@ -1,13 +1,13 @@
-package com.referralportal.config;
+package com.referralportal.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-class SpaController {
+public class SpaController {
 
     @GetMapping({"/companies", "/chats", "/chats/{id}", "/badge", "/referrals", "/profile"})
-    String forwardToFrontend() {
+    public String forwardToFrontend() {
         return "forward:/index.html";
     }
 }

@@ -1,7 +1,10 @@
-package com.referralportal.company;
+package com.referralportal.service;
 
+import com.referralportal.company.CompanyDtos;
+import com.referralportal.repository.CompanyRepository;
+import com.referralportal.repository.CompanyRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.user.UserService;
+import com.referralportal.service.UserService;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import static com.referralportal.company.CompanyDtos.CompaniesResponse;
 
 @Service
-class CompanyService {
+public class CompanyService {
 
     static final int WISHLIST_MAX = 5;
 
@@ -21,20 +24,20 @@ class CompanyService {
     private final CompanyRepository companies;
     private final RequestBudget budget;
 
-    CompanyService(UserService users, CompanyRepository companies, RequestBudget budget) {
+    public CompanyService(UserService users, CompanyRepository companies, RequestBudget budget) {
         this.users = users;
         this.companies = companies;
         this.budget = budget;
     }
 
-    CompaniesResponse list(Authentication auth) {
+    public CompaniesResponse list(Authentication auth) {
         CurrentUser user = users.current(auth);
         Set<Long> wishlisted = companies.findWishlistedCompanyIds(user.id());
         List<CompanyDtos.CompanyView> items = companies.findCompanies(user.id(), wishlisted);
         return new CompaniesResponse(wishlisted.size(), WISHLIST_MAX, budget.left(user.id()), RequestBudget.REQUESTS_MAX, items);
     }
 
-    Map<String, Object> addToWishlist(Authentication auth, long companyId) {
+    public Map<String, Object> addToWishlist(Authentication auth, long companyId) {
         CurrentUser user = users.current(auth);
         if (!companies.existsById(companyId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found.");
@@ -51,7 +54,7 @@ class CompanyService {
         return Map.of("wishlisted", true);
     }
 
-    Map<String, Object> removeFromWishlist(Authentication auth, long companyId) {
+    public Map<String, Object> removeFromWishlist(Authentication auth, long companyId) {
         CurrentUser user = users.current(auth);
         companies.removeFromWishlist(user.id(), companyId);
         return Map.of("wishlisted", false);
