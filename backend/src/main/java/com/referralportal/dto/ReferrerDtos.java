@@ -1,4 +1,4 @@
-package com.referralportal.referrer;
+package com.referralportal.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;

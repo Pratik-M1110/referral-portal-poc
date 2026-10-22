@@ -1,4 +1,4 @@
-package com.referralportal.profile;
+package com.referralportal.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

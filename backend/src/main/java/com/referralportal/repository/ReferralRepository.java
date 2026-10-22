@@ -1,32 +1,25 @@
 package com.referralportal.repository;
 
+import com.referralportal.entity.Referral;
+import com.referralportal.repository.jpa.ReferralJpaRepository;
 import java.util.List;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import static com.referralportal.referral.ReferralDtos.ReferralView;
+import static com.referralportal.dto.ReferralDtos.ReferralView;
 
 @Repository
 public class ReferralRepository {
 
-    private final JdbcClient jdbc;
-
-    public ReferralRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private ReferralJpaRepository referrals;
 
     public List<ReferralView> findReceivedByCandidateId(long candidateId) {
-        return jdbc.sql("""
-                SELECT r.id, co.name AS company_name, u.name AS referrer_name, ro.title AS role_title, r.status, r.updated_at
-                FROM referrals r
-                JOIN companies co ON co.id = r.company_id
-                JOIN users u ON u.id = r.referrer_id
-                LEFT JOIN open_roles ro ON ro.id = r.role_id
-                WHERE r.candidate_id = ? ORDER BY r.updated_at DESC""")
-                .param(candidateId)
-                .query((rs, n) -> new ReferralView(rs.getLong("id"), rs.getString("company_name"),
-                        rs.getString("referrer_name"), rs.getString("role_title"), rs.getString("status"),
-                        rs.getTimestamp("updated_at").toInstant().toString()))
-                .list();
+        return referrals.findReceivedByCandidateId(candidateId).stream().map(ReferralRepository::view).toList();
+    }
+
+    private static ReferralView view(Referral r) {
+        return new ReferralView(r.getId(), r.getCompany().getName(), r.getReferrer().getName(),
+                r.getRole() == null ? null : r.getRole().getTitle(), r.getStatus(), r.getUpdatedAt().toString());
     }
 }

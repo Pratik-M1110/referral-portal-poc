@@ -1,4 +1,4 @@
-package com.referralportal.chat;
+package com.referralportal.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

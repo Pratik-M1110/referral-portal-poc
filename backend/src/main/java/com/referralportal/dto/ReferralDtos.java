@@ -1,4 +1,4 @@
-package com.referralportal.referral;
+package com.referralportal.dto;
 
 public final class ReferralDtos {
 

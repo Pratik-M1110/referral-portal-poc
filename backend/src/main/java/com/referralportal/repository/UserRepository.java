@@ -1,37 +1,54 @@
 package com.referralportal.repository;
 
-import java.util.Objects;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import com.referralportal.entity.Badge;
+import com.referralportal.entity.User;
+import com.referralportal.repository.jpa.BadgeJpaRepository;
+import com.referralportal.repository.jpa.ConversationJpaRepository;
+import com.referralportal.repository.jpa.ReferralJpaRepository;
+import com.referralportal.repository.jpa.ReviewJpaRepository;
+import com.referralportal.repository.jpa.UserJpaRepository;
+import java.time.Instant;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class UserRepository {
 
-    private final JdbcClient jdbc;
-
-    public UserRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private UserJpaRepository users;
+    @Autowired
+    private BadgeJpaRepository badges;
+    @Autowired
+    private ConversationJpaRepository conversations;
+    @Autowired
+    private ReviewJpaRepository reviews;
+    @Autowired
+    private ReferralJpaRepository referrals;
 
     public Long findIdByEmail(String email) {
-        return jdbc.sql("SELECT id FROM users WHERE email = ?").param(email).query(Long.class).optional().orElse(null);
+        return users.findByEmail(email).map(User::getId).orElse(null);
     }
 
     public long createAccount(String name, String email, String provider, String qrToken) {
-        KeyHolder keys = new GeneratedKeyHolder();
-        jdbc.sql("INSERT INTO users (name, email, auth_provider, consent_at) VALUES (?, ?, ?, NOW())")
-                .params(name, email, provider).update(keys);
-        long id = Objects.requireNonNull(keys.getKey()).longValue();
-        jdbc.sql("INSERT INTO badges (user_id, qr_token) VALUES (?, ?)").params(id, qrToken).update();
-        return id;
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setAuthProvider(provider);
+        user.setConsentAt(Instant.now());
+        user.setCreatedAt(Instant.now());
+        user = users.save(user);
+
+        Badge badge = new Badge();
+        badge.setUser(user);
+        badge.setQrToken(qrToken);
+        badges.save(badge);
+        return user.getId();
     }
 
     public void deleteAccount(long userId) {
-        jdbc.sql("DELETE FROM conversations WHERE seeker_id = ? OR referrer_id = ?").params(userId, userId).update();
-        jdbc.sql("DELETE FROM reviews WHERE referrer_id = ? OR candidate_id = ?").params(userId, userId).update();
-        jdbc.sql("DELETE FROM referrals WHERE referrer_id = ? OR candidate_id = ?").params(userId, userId).update();
-        jdbc.sql("DELETE FROM users WHERE id = ?").param(userId).update();
+        conversations.deleteBySeekerIdOrReferrerId(userId);
+        reviews.deleteByReferrerIdOrCandidateId(userId);
+        referrals.deleteByReferrerIdOrCandidateId(userId);
+        users.deleteUserById(userId);
     }
 }

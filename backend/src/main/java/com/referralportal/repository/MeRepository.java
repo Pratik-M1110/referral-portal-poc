@@ -1,23 +1,25 @@
 package com.referralportal.repository;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
+import com.referralportal.repository.jpa.ProfileJpaRepository;
+import com.referralportal.repository.jpa.ReferrerProfileJpaRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class MeRepository {
 
-    private final JdbcClient jdbc;
-
-    public MeRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private ProfileJpaRepository profiles;
+    @Autowired
+    private ReferrerProfileJpaRepository referrerProfiles;
 
     public boolean hasProfile(long userId) {
-        return jdbc.sql("SELECT COUNT(*) FROM profiles WHERE user_id = ?").param(userId).query(Long.class).single() > 0;
+        return profiles.existsById(userId);
     }
 
     public boolean isVerifiedReferrer(long userId) {
-        return jdbc.sql("SELECT COUNT(*) FROM referrer_profiles WHERE user_id = ? AND verified_at IS NOT NULL AND is_referrer = TRUE")
-                .param(userId).query(Long.class).single() > 0;
+        return referrerProfiles.findById(userId)
+                .map(rp -> rp.getVerifiedAt() != null && rp.isReferrer())
+                .orElse(false);
     }
 }

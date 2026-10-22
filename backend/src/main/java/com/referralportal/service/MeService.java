@@ -1,24 +1,20 @@
 package com.referralportal.service;
 
 import com.referralportal.repository.MeRepository;
-import com.referralportal.repository.MeRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.service.UserService;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MeService {
 
-    private final UserService users;
-    private final MeRepository meRepository;
-
-    public MeService(UserService users, MeRepository meRepository) {
-        this.users = users;
-        this.meRepository = meRepository;
-    }
+    @Autowired
+    private UserService users;
+    @Autowired
+    private MeRepository meRepository;
 
     public Map<String, Object> get(Authentication auth) {
         CurrentUser user = users.current(auth);

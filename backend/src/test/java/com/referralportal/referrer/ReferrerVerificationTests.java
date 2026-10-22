@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.server.ResponseStatusException;
 
-import static com.referralportal.referrer.ReferrerDtos.Settings;
+import static com.referralportal.dto.ReferrerDtos.Settings;
 
 @SpringBootTest(properties = {
         "spring.security.oauth2.client.registration.google.client-id=test-google-client",

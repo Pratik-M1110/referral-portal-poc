@@ -1,18 +1,17 @@
 package com.referralportal.repository;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
+import com.referralportal.entity.Badge;
+import com.referralportal.repository.jpa.BadgeJpaRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class BadgeRepository {
 
-    private final JdbcClient jdbc;
-
-    public BadgeRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private BadgeJpaRepository badges;
 
     public String findTokenByUserId(long userId) {
-        return jdbc.sql("SELECT qr_token FROM badges WHERE user_id = ?").param(userId).query(String.class).single();
+        return badges.findById(userId).map(Badge::getQrToken).orElse(null);
     }
 }

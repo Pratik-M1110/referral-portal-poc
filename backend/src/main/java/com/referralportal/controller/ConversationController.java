@@ -1,10 +1,10 @@
 package com.referralportal.controller;
 
 import com.referralportal.service.ConversationService;
-import com.referralportal.service.ConversationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,19 +12,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.referralportal.chat.ConversationDtos.ConversationView;
-import static com.referralportal.chat.ConversationDtos.MeetRequest;
-import static com.referralportal.chat.ConversationDtos.MessageInput;
-import static com.referralportal.chat.ConversationDtos.ThreadView;
+import static com.referralportal.dto.ConversationDtos.ConversationView;
+import static com.referralportal.dto.ConversationDtos.MeetRequest;
+import static com.referralportal.dto.ConversationDtos.MessageInput;
+import static com.referralportal.dto.ConversationDtos.ThreadView;
 
 @RestController
 public class ConversationController {
 
-    private final ConversationService conversations;
-
-    public ConversationController(ConversationService conversations) {
-        this.conversations = conversations;
-    }
+    @Autowired
+    private ConversationService conversations;
 
     @GetMapping("/api/conversations")
     public List<ConversationView> list(Authentication auth) {
