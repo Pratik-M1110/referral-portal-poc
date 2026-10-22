@@ -1,94 +1,114 @@
 package com.referralportal.repository;
 
+import com.referralportal.entity.Company;
+import com.referralportal.entity.ReferrerProfile;
+import com.referralportal.repository.jpa.CompanyJpaRepository;
+import com.referralportal.repository.jpa.EmailOtpJpaRepository;
+import com.referralportal.repository.jpa.ReferrerProfileJpaRepository;
+import com.referralportal.repository.jpa.UserJpaRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
-import static com.referralportal.referrer.ReferrerDtos.Settings;
+import static com.referralportal.dto.ReferrerDtos.Settings;
 
 @Repository
 public class ReferrerRepository {
 
-    private final JdbcClient jdbc;
-
-    public ReferrerRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private EmailOtpJpaRepository otps;
+    @Autowired
+    private ReferrerProfileJpaRepository referrerProfiles;
+    @Autowired
+    private CompanyJpaRepository companies;
+    @Autowired
+    private UserJpaRepository users;
 
     public long countOtpRequestsInLast15Minutes(long userId) {
-        return jdbc.sql("SELECT COUNT(*) FROM email_otps WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)")
-                .param(userId).query(Long.class).single();
+        return otps.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(15, ChronoUnit.MINUTES));
     }
 
     public boolean hasOtpRequestInLastMinute(long userId) {
-        return jdbc.sql("SELECT COUNT(*) FROM email_otps WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)")
-                .param(userId).query(Long.class).single() > 0;
+        return otps.existsByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.MINUTES));
     }
 
     public void deleteOtps(long userId) {
-        jdbc.sql("DELETE FROM email_otps WHERE user_id = ?").param(userId).update();
+        otps.deleteByUserId(userId);
     }
 
     public void insertOtp(long userId, String workEmail, String codeHash) {
-        jdbc.sql("INSERT INTO email_otps (user_id, work_email, code_hash, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))")
-                .params(userId, workEmail, codeHash).update();
+        com.referralportal.entity.EmailOtp otp = new com.referralportal.entity.EmailOtp();
+        otp.setUser(users.getReferenceById(userId));
+        otp.setWorkEmail(workEmail);
+        otp.setCodeHash(codeHash);
+        otp.setExpiresAt(Instant.now().plus(10, ChronoUnit.MINUTES));
+        otp.setCreatedAt(Instant.now());
+        otps.save(otp);
     }
 
     public Optional<EmailOtp> latestOtpForUpdate(long userId) {
-        return jdbc.sql("SELECT id, work_email, code_hash, expires_at <= NOW() AS expired, attempts FROM email_otps WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE")
-            .param(userId)
-            .query((rs, row) -> new EmailOtp(rs.getLong("id"), rs.getString("work_email"),
-                rs.getString("code_hash"), rs.getBoolean("expired"), rs.getInt("attempts")))
-                .optional();
+        List<com.referralportal.entity.EmailOtp> rows = otps.findLatestForUpdate(userId, PageRequest.of(0, 1));
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        com.referralportal.entity.EmailOtp otp = rows.get(0);
+        boolean expired = !otp.getExpiresAt().isAfter(Instant.now());
+        return Optional.of(new EmailOtp(otp.getId(), otp.getWorkEmail(), otp.getCodeHash(), expired, otp.getAttempts()));
     }
 
     public void incrementAttempts(long otpId) {
-        jdbc.sql("UPDATE email_otps SET attempts = attempts + 1 WHERE id = ?").param(otpId).update();
+        otps.incrementAttempts(otpId);
     }
 
     public void deleteOtp(long otpId) {
-        jdbc.sql("DELETE FROM email_otps WHERE id = ?").param(otpId).update();
+        otps.deleteById(otpId);
     }
 
     public boolean emailAlreadyClaimed(long userId, String workEmail) {
-        long referrerOwner = jdbc.sql("SELECT COUNT(*) FROM referrer_profiles WHERE work_email = ? AND user_id <> ?")
-            .params(workEmail, userId).query(Long.class).single();
-        long accountOwner = jdbc.sql("SELECT COUNT(*) FROM users WHERE email = ? AND id <> ?")
-            .params(workEmail, userId).query(Long.class).single();
-        return referrerOwner > 0 || accountOwner > 0;
+        return referrerProfiles.existsByWorkEmailAndUserIdNot(workEmail, userId)
+                || users.existsByEmailAndIdNot(workEmail, userId);
     }
 
     public long findOrCreateCompany(String emailDomain, String companyName) {
-        jdbc.sql("INSERT IGNORE INTO companies (name, email_domain) VALUES (?, ?)")
-                .params(companyName, emailDomain).update();
-        return jdbc.sql("SELECT id FROM companies WHERE email_domain = ?").param(emailDomain).query(Long.class).single();
+        return companies.findByEmailDomain(emailDomain).map(Company::getId).orElseGet(() -> {
+            Company company = new Company();
+            company.setName(companyName);
+            company.setEmailDomain(emailDomain);
+            return companies.save(company).getId();
+        });
     }
 
     public void verifyReferrer(long userId, long companyId, String workEmail) {
-        jdbc.sql("""
-                INSERT INTO referrer_profiles (user_id, company_id, work_email, verified_at)
-                VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE company_id = VALUES(company_id), work_email = VALUES(work_email),
-                  verified_at = NOW(), is_referrer = TRUE""")
-                .params(userId, companyId, workEmail).update();
+        ReferrerProfile profile = referrerProfiles.findById(userId).orElseGet(() -> {
+            ReferrerProfile created = new ReferrerProfile();
+            created.setUser(users.getReferenceById(userId));
+            return created;
+        });
+        profile.setCompany(companies.getReferenceById(companyId));
+        profile.setWorkEmail(workEmail);
+        profile.setVerifiedAt(Instant.now());
+        profile.setReferrer(true);
+        referrerProfiles.save(profile);
     }
 
     public Settings settings(long userId) {
-        return jdbc.sql("""
-                SELECT rp.verified_at, rp.work_email, c.name AS company_name, rp.open_to_meet,
-                       rp.slot_capacity, rp.referral_limit
-                FROM referrer_profiles rp JOIN companies c ON c.id = rp.company_id WHERE rp.user_id = ?""")
-                .param(userId)
-                .query((rs, row) -> new Settings(rs.getTimestamp("verified_at") != null, rs.getString("work_email"),
-                        rs.getString("company_name"), rs.getBoolean("open_to_meet"), rs.getInt("slot_capacity"),
-                        rs.getInt("referral_limit")))
-                .optional()
+        return referrerProfiles.findById(userId)
+                .map(rp -> new Settings(rp.getVerifiedAt() != null, rp.getWorkEmail(), rp.getCompany().getName(),
+                        rp.isOpenToMeet(), rp.getSlotCapacity(), rp.getReferralLimit()))
                 .orElse(new Settings(false, null, null, false, 3, 10));
     }
 
     public void updateSettings(long userId, boolean openToMeet, int slotCapacity, int referralLimit) {
-        jdbc.sql("UPDATE referrer_profiles SET open_to_meet = ?, slot_capacity = ?, referral_limit = ? WHERE user_id = ? AND verified_at IS NOT NULL")
-                .params(openToMeet, slotCapacity, referralLimit, userId).update();
+        referrerProfiles.findById(userId).filter(rp -> rp.getVerifiedAt() != null).ifPresent(rp -> {
+            rp.setOpenToMeet(openToMeet);
+            rp.setSlotCapacity((short) slotCapacity);
+            rp.setReferralLimit((short) referralLimit);
+            referrerProfiles.save(rp);
+        });
     }
 
     public record EmailOtp(long id, String workEmail, String codeHash, boolean expired, int attempts) {}

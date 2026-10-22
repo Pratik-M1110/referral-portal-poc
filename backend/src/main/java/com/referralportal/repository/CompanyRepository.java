@@ -1,83 +1,109 @@
 package com.referralportal.repository;
 
 import com.referralportal.common.ChipLists;
+import com.referralportal.entity.Company;
+import com.referralportal.entity.OpenRole;
+import com.referralportal.entity.ReferrerProfile;
+import com.referralportal.entity.User;
+import com.referralportal.entity.Wishlist;
+import com.referralportal.repository.jpa.CompanyJpaRepository;
+import com.referralportal.repository.jpa.ConversationJpaRepository;
+import com.referralportal.repository.jpa.OpenRoleJpaRepository;
+import com.referralportal.repository.jpa.ReferrerProfileJpaRepository;
+import com.referralportal.repository.jpa.UserJpaRepository;
+import com.referralportal.repository.jpa.WishlistJpaRepository;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import static com.referralportal.company.CompanyDtos.CompanyView;
-import static com.referralportal.company.CompanyDtos.Person;
-import static com.referralportal.company.CompanyDtos.RoleView;
+import static com.referralportal.dto.CompanyDtos.CompanyView;
+import static com.referralportal.dto.CompanyDtos.Person;
+import static com.referralportal.dto.CompanyDtos.RoleView;
 
 @Repository
 public class CompanyRepository {
 
-    private final JdbcClient jdbc;
+    private static final List<String> ACTIVE_STATUSES = List.of("accepted", "completed");
 
-    public CompanyRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private CompanyJpaRepository companies;
+    @Autowired
+    private OpenRoleJpaRepository openRoles;
+    @Autowired
+    private ReferrerProfileJpaRepository referrerProfiles;
+    @Autowired
+    private WishlistJpaRepository wishlists;
+    @Autowired
+    private ConversationJpaRepository conversations;
+    @Autowired
+    private UserJpaRepository users;
 
     public Set<Long> findWishlistedCompanyIds(long seekerId) {
-        return Set.copyOf(jdbc.sql("SELECT company_id FROM wishlists WHERE seeker_id = ?").param(seekerId)
-                .query(Long.class).list());
+        return wishlists.findBySeekerId(seekerId).stream().map(w -> w.getCompany().getId()).collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public List<CompanyView> findCompanies(long seekerId, Set<Long> wishlistedIds) {
-        List<CompanyView> companies = new ArrayList<>();
-        List<CompanyRow> rows = jdbc.sql("SELECT id, name, email_domain, booth_label, is_sponsor FROM companies ORDER BY is_sponsor DESC, name")
-                .query((rs, n) -> new CompanyRow(rs.getLong("id"), rs.getString("name"), rs.getString("email_domain"),
-                        rs.getString("booth_label"), rs.getBoolean("is_sponsor")))
-                .list();
-        for (CompanyRow row : rows) {
-            List<RoleView> roles = jdbc.sql("SELECT id, title, level, CAST(skills AS CHAR) AS skills FROM open_roles WHERE company_id = ? ORDER BY id")
-                    .param(row.id())
-                    .query((rs, n) -> new RoleView(rs.getLong("id"), rs.getString("title"), rs.getString("level"),
-                            ChipLists.fromJson(rs.getString("skills"))))
-                    .list();
-            List<Person> people = jdbc.sql("""
-                    SELECT u.id, u.name, rp.job_title, rp.slot_capacity,
-                      (SELECT COUNT(*) FROM conversations c WHERE c.referrer_id = u.id AND c.status IN ('accepted','completed')) AS used
-                    FROM referrer_profiles rp JOIN users u ON u.id = rp.user_id
-                    WHERE rp.company_id = ? AND rp.verified_at IS NOT NULL AND rp.is_referrer = TRUE AND rp.open_to_meet = TRUE
-                      AND u.id <> ? ORDER BY u.name""")
-                    .params(row.id(), seekerId)
-                    .query((rs, n) -> new Person(rs.getLong("id"), rs.getString("name"), rs.getString("job_title"),
-                            rs.getInt("used") >= rs.getInt("slot_capacity")))
-                    .list();
-            companies.add(new CompanyView(row.id(), row.name(), row.domain(), row.boothLabel(), row.sponsor(),
-                    wishlistedIds.contains(row.id()), roles, people));
+        List<CompanyView> result = new ArrayList<>();
+        List<ReferrerProfile> openReferrers = referrerProfiles.findAll().stream()
+                .filter(rp -> rp.getVerifiedAt() != null && rp.isReferrer() && rp.isOpenToMeet() && rp.getUserId() != seekerId)
+                .toList();
+        for (Company company : companies.findAllByOrderBySponsorDescNameAsc()) {
+            List<RoleView> roles = openRoles.findByCompanyIdOrderById(company.getId()).stream()
+                    .map(CompanyRepository::roleView).toList();
+            List<Person> people = openReferrers.stream()
+                    .filter(rp -> rp.getCompany().getId().equals(company.getId()))
+                    .sorted(Comparator.comparing(rp -> rp.getUser().getName()))
+                    .map(rp -> {
+                        long used = conversations.countByReferrerIdAndStatusIn(rp.getUserId(), ACTIVE_STATUSES);
+                        return new Person(rp.getUserId(), rp.getUser().getName(), rp.getJobTitle(),
+                                used >= rp.getSlotCapacity());
+                    })
+                    .toList();
+            result.add(new CompanyView(company.getId(), company.getName(), company.getEmailDomain(),
+                    company.getBoothLabel(), company.isSponsor(), wishlistedIds.contains(company.getId()), roles, people));
         }
-        return companies;
+        return result;
     }
 
     public boolean existsById(long companyId) {
-        return jdbc.sql("SELECT COUNT(*) FROM companies WHERE id = ?").param(companyId).query(Long.class).single() > 0;
+        return companies.existsById(companyId);
     }
 
     public boolean isVerifiedOwnCompany(long userId, long companyId) {
-        return jdbc.sql("SELECT COUNT(*) FROM referrer_profiles WHERE user_id = ? AND company_id = ? AND verified_at IS NOT NULL")
-                .params(userId, companyId).query(Long.class).single() > 0;
+        return referrerProfiles.findById(userId)
+                .map(rp -> rp.getVerifiedAt() != null && rp.getCompany().getId() == companyId)
+                .orElse(false);
     }
 
     public boolean isWishlisted(long seekerId, long companyId) {
-        return jdbc.sql("SELECT COUNT(*) FROM wishlists WHERE seeker_id = ? AND company_id = ?")
-                .params(seekerId, companyId).query(Long.class).single() > 0;
+        return wishlists.existsBySeekerIdAndCompanyId(seekerId, companyId);
     }
 
     public long countWishlistItems(long seekerId) {
-        return jdbc.sql("SELECT COUNT(*) FROM wishlists WHERE seeker_id = ?").param(seekerId).query(Long.class).single();
+        return wishlists.countBySeekerId(seekerId);
     }
 
     public void addToWishlist(long seekerId, long companyId) {
-        jdbc.sql("INSERT IGNORE INTO wishlists (seeker_id, company_id) VALUES (?, ?)").params(seekerId, companyId).update();
+        if (wishlists.existsBySeekerIdAndCompanyId(seekerId, companyId)) {
+            return; // mirrors the previous INSERT IGNORE semantics
+        }
+        User user = users.getReferenceById(seekerId);
+        Company company = companies.getReferenceById(companyId);
+        Wishlist wishlist = new Wishlist();
+        wishlist.setSeeker(user);
+        wishlist.setCompany(company);
+        wishlist.setCreatedAt(java.time.Instant.now());
+        wishlists.save(wishlist);
     }
 
     public void removeFromWishlist(long seekerId, long companyId) {
-        jdbc.sql("DELETE FROM wishlists WHERE seeker_id = ? AND company_id = ?").params(seekerId, companyId).update();
+        wishlists.deleteBySeekerIdAndCompanyId(seekerId, companyId);
     }
 
-    private record CompanyRow(long id, String name, String domain, String boothLabel, boolean sponsor) {}
+    private static RoleView roleView(OpenRole role) {
+        return new RoleView(role.getId(), role.getTitle(), role.getLevel(), ChipLists.fromJson(role.getSkills()));
+    }
 }

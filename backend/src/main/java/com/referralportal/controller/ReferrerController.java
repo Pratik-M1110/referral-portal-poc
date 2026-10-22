@@ -1,8 +1,8 @@
 package com.referralportal.controller;
 
 import com.referralportal.service.ReferrerService;
-import com.referralportal.service.ReferrerService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,20 +10,17 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.referralportal.referrer.ReferrerDtos.ConfirmVerificationRequest;
-import static com.referralportal.referrer.ReferrerDtos.Settings;
-import static com.referralportal.referrer.ReferrerDtos.SettingsRequest;
-import static com.referralportal.referrer.ReferrerDtos.StartVerificationRequest;
-import static com.referralportal.referrer.ReferrerDtos.VerificationStarted;
+import static com.referralportal.dto.ReferrerDtos.ConfirmVerificationRequest;
+import static com.referralportal.dto.ReferrerDtos.Settings;
+import static com.referralportal.dto.ReferrerDtos.SettingsRequest;
+import static com.referralportal.dto.ReferrerDtos.StartVerificationRequest;
+import static com.referralportal.dto.ReferrerDtos.VerificationStarted;
 
 @RestController
 public class ReferrerController {
 
-    private final ReferrerService referrers;
-
-    public ReferrerController(ReferrerService referrers) {
-        this.referrers = referrers;
-    }
+    @Autowired
+    private ReferrerService referrers;
 
     @PostMapping("/api/referrer/verify/start")
     public VerificationStarted start(Authentication authentication, @Valid @RequestBody StartVerificationRequest request) {

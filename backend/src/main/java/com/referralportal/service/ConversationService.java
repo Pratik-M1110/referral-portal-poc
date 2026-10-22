@@ -1,46 +1,41 @@
 package com.referralportal.service;
 
 import com.referralportal.repository.ConversationRepository;
-import com.referralportal.service.RequestBudget;
-import com.referralportal.repository.ConversationRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.service.UserService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
-import static com.referralportal.chat.ConversationDtos.ConversationView;
-import static com.referralportal.chat.ConversationDtos.MeetRequest;
-import static com.referralportal.chat.ConversationDtos.MessageInput;
-import static com.referralportal.chat.ConversationDtos.MessageView;
-import static com.referralportal.chat.ConversationDtos.ThreadView;
+import static com.referralportal.dto.ConversationDtos.ConversationView;
+import static com.referralportal.dto.ConversationDtos.MeetRequest;
+import static com.referralportal.dto.ConversationDtos.MessageInput;
+import static com.referralportal.dto.ConversationDtos.MessageView;
+import static com.referralportal.dto.ConversationDtos.ThreadView;
 
 @Service
 public class ConversationService {
 
     static final int MESSAGE_CAP = 20;
 
-    private final UserService users;
-    private final ConversationRepository conversations;
-    private final TransactionTemplate transactions;
-    private final RequestBudget budget;
-    private final boolean seedDemo;
+    @Autowired
+    private UserService users;
+    @Autowired
+    private ConversationRepository conversations;
+    @Autowired
+    private TransactionTemplate transactions;
+    @Autowired
+    private RequestBudget budget;
 
-    public ConversationService(UserService users, ConversationRepository conversations, TransactionTemplate transactions,
-            RequestBudget budget, @Value("${app.seed-demo:false}") boolean seedDemo) {
-        this.users = users;
-        this.conversations = conversations;
-        this.transactions = transactions;
-        this.budget = budget;
-        this.seedDemo = seedDemo;
-    }
+    @Value("${app.seed-demo:false}")
+    private boolean seedDemo;
 
     public List<ConversationView> list(Authentication auth) {
         CurrentUser user = users.current(auth);
@@ -107,7 +102,7 @@ public class ConversationService {
                 return conversationId;
             }));
             return Map.of("id", id, "requestsLeft", budget.left(seeker.id()));
-        } catch (DuplicateKeyException e) {
+        } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "You already have a conversation with this person.");
         }
     }

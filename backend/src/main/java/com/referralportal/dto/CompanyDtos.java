@@ -1,4 +1,4 @@
-package com.referralportal.company;
+package com.referralportal.dto;
 
 import java.util.List;
 

@@ -3,13 +3,12 @@ package com.referralportal.service;
 import com.referralportal.demo.DemoDataSeeder;
 import com.referralportal.repository.UserRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.repository.UserRepository;
-import com.referralportal.user.CurrentUser;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -24,18 +23,15 @@ public class UserService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final UserRepository users;
-    private final TransactionTemplate tx;
-    private final DemoDataSeeder demo;
-    private final boolean seedDemo;
+    @Autowired
+    private UserRepository users;
+    @Autowired
+    private TransactionTemplate tx;
+    @Autowired
+    private DemoDataSeeder demo;
 
-    public UserService(UserRepository users, TransactionTemplate tx, DemoDataSeeder demo,
-            @Value("${app.seed-demo:false}") boolean seedDemo) {
-        this.users = users;
-        this.tx = tx;
-        this.demo = demo;
-        this.seedDemo = seedDemo;
-    }
+    @Value("${app.seed-demo:false}")
+    private boolean seedDemo;
 
     public CurrentUser current(Authentication auth) {
         if (!(auth instanceof OAuth2AuthenticationToken token)) {
@@ -61,7 +57,7 @@ public class UserService {
                 }
                 return id;
             }));
-        } catch (DuplicateKeyException e) {
+        } catch (DataIntegrityViolationException e) {
             return Objects.requireNonNull(users.findIdByEmail(email));
         }
     }

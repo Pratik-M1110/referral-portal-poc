@@ -1,16 +1,15 @@
 package com.referralportal.service;
 
-import com.referralportal.referrer.ReferrerDtos;
-import com.referralportal.repository.ReferrerRepository;
+import com.referralportal.dto.ReferrerDtos;
 import com.referralportal.repository.ReferrerRepository;
 import com.referralportal.user.CurrentUser;
-import com.referralportal.service.UserService;
 import java.security.SecureRandom;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -21,8 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
-import static com.referralportal.referrer.ReferrerDtos.Settings;
-import static com.referralportal.referrer.ReferrerDtos.SettingsRequest;
+import static com.referralportal.dto.ReferrerDtos.Settings;
+import static com.referralportal.dto.ReferrerDtos.SettingsRequest;
 
 @Service
 public class ReferrerService {
@@ -34,23 +33,19 @@ public class ReferrerService {
             "hotmail.co.uk", "live.com", "icloud.com", "me.com", "mac.com", "proton.me", "protonmail.com",
             "aol.com", "gmx.com", "yandex.com", "zoho.com");
 
-    private final UserService users;
-    private final ReferrerRepository referrers;
-    private final JavaMailSender mailSender;
-    private final PasswordEncoder passwordEncoder;
-    private final TransactionTemplate transactions;
-    private final String mailFrom;
+    @Autowired
+    private UserService users;
+    @Autowired
+    private ReferrerRepository referrers;
+    @Autowired
+    private JavaMailSender mailSender;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    @Autowired
+    private TransactionTemplate transactions;
 
-    public ReferrerService(UserService users, ReferrerRepository referrers, JavaMailSender mailSender,
-            PasswordEncoder passwordEncoder, TransactionTemplate transactions,
-            @Value("${app.mail-from:}") String mailFrom) {
-        this.users = users;
-        this.referrers = referrers;
-        this.mailSender = mailSender;
-        this.passwordEncoder = passwordEncoder;
-        this.transactions = transactions;
-        this.mailFrom = mailFrom;
-    }
+    @Value("${app.mail-from:}")
+    private String mailFrom;
 
     public ReferrerDtos.VerificationStarted startVerification(Authentication authentication, String rawEmail) {
         CurrentUser user = users.current(authentication);
@@ -151,7 +146,7 @@ public class ReferrerService {
         try {
             long companyId = referrers.findOrCreateCompany(domain, companyName);
             referrers.verifyReferrer(userId, companyId, workEmail);
-        } catch (DuplicateKeyException e) {
+        } catch (DataIntegrityViolationException e) {
             return new ConfirmOutcome(ConfirmResult.EMAIL_IN_USE, null);
         }
         referrers.deleteOtps(userId);

@@ -1,112 +1,120 @@
 package com.referralportal.repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.referralportal.entity.Company;
+import com.referralportal.entity.Conversation;
+import com.referralportal.entity.Message;
+import com.referralportal.entity.ReferrerProfile;
+import com.referralportal.entity.User;
+import com.referralportal.repository.jpa.ConversationJpaRepository;
+import com.referralportal.repository.jpa.MessageJpaRepository;
+import com.referralportal.repository.jpa.ReferrerProfileJpaRepository;
+import com.referralportal.repository.jpa.ReportsBlockJpaRepository;
+import com.referralportal.repository.jpa.UserJpaRepository;
+import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
+import java.util.NoSuchElementException;
 import java.util.Optional;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import static com.referralportal.chat.ConversationDtos.ConversationView;
-import static com.referralportal.chat.ConversationDtos.MessageView;
+import static com.referralportal.dto.ConversationDtos.ConversationView;
+import static com.referralportal.dto.ConversationDtos.MessageView;
 
 @Repository
 public class ConversationRepository {
 
-    private static final String SELECT = """
-            SELECT c.id, c.seeker_id, c.referrer_id, c.status, c.initiated_by, c.message_count, c.first_message,
-                   su.name AS seeker_name, ru.name AS referrer_name, rp.job_title, co.name AS company_name,
-                   (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_message
-            FROM conversations c
-            JOIN users su ON su.id = c.seeker_id
-            JOIN users ru ON ru.id = c.referrer_id
-            LEFT JOIN referrer_profiles rp ON rp.user_id = c.referrer_id
-            LEFT JOIN companies co ON co.id = rp.company_id""";
+    private static final List<String> ACTIVE_STATUSES = List.of("accepted", "completed");
 
-    private final JdbcClient jdbc;
-
-    public ConversationRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
+    @Autowired
+    private ConversationJpaRepository conversations;
+    @Autowired
+    private MessageJpaRepository messages;
+    @Autowired
+    private ReferrerProfileJpaRepository referrerProfiles;
+    @Autowired
+    private ReportsBlockJpaRepository reportsBlocks;
+    @Autowired
+    private UserJpaRepository users;
 
     public List<ConversationView> findForUser(long userId) {
-        return jdbc.sql(SELECT + " WHERE c.seeker_id = :me OR c.referrer_id = :me ORDER BY c.id DESC")
-                .param("me", userId).query((rs, n) -> view(rs, userId)).list();
+        return conversations.findBySeekerIdOrReferrerIdOrderByIdDesc(userId, userId).stream()
+                .map(c -> view(c, userId)).toList();
     }
 
     public Optional<ConversationView> findForParticipant(long conversationId, long userId) {
-        return jdbc.sql(SELECT + " WHERE c.id = :id AND (c.seeker_id = :me OR c.referrer_id = :me)")
-                .param("id", conversationId).param("me", userId)
-                .query((rs, n) -> view(rs, userId)).optional();
+        return conversations.findById(conversationId)
+                .filter(c -> c.getSeeker().getId() == userId || c.getReferrer().getId() == userId)
+                .map(c -> view(c, userId));
     }
 
     public List<MessageView> findMessages(long conversationId, long userId) {
-        return jdbc.sql("SELECT id, sender_id, body, sent_at FROM messages WHERE conversation_id = ? ORDER BY id")
-                .param(conversationId)
-                .query((rs, n) -> new MessageView(rs.getLong("id"), rs.getLong("sender_id"),
-                        rs.getLong("sender_id") == userId, rs.getString("body"),
-                        rs.getTimestamp("sent_at").toInstant().toString()))
-                .list();
+        return messages.findByConversationIdOrderById(conversationId).stream()
+                .map(m -> new MessageView(m.getId(), m.getSender().getId(), m.getSender().getId() == userId,
+                        m.getBody(), m.getSentAt().toString()))
+                .toList();
     }
 
     public Optional<ReferrerTarget> findOpenReferrer(long userId) {
-        return jdbc.sql("""
-                SELECT rp.company_id, rp.slot_capacity, u.auth_provider FROM referrer_profiles rp JOIN users u ON u.id = rp.user_id
-                WHERE rp.user_id = ? AND rp.verified_at IS NOT NULL AND rp.is_referrer = TRUE AND rp.open_to_meet = TRUE""")
-                .param(userId)
-                .query((rs, n) -> new ReferrerTarget(rs.getLong("company_id"), rs.getInt("slot_capacity"),
-                        rs.getString("auth_provider")))
-                .optional();
+        return referrerProfiles.findById(userId)
+                .filter(rp -> rp.getVerifiedAt() != null && rp.isReferrer() && rp.isOpenToMeet())
+                .map(rp -> new ReferrerTarget(rp.getCompany().getId(), rp.getSlotCapacity(), rp.getUser().getAuthProvider()));
     }
 
     public boolean hasVerifiedCompany(long userId, long companyId) {
-        return jdbc.sql("SELECT COUNT(*) FROM referrer_profiles WHERE user_id = ? AND company_id = ? AND verified_at IS NOT NULL")
-                .params(userId, companyId).query(Long.class).single() > 0;
+        return referrerProfiles.findById(userId)
+                .map(rp -> rp.getVerifiedAt() != null && rp.getCompany().getId() == companyId)
+                .orElse(false);
     }
 
     public boolean isBlockedPair(long firstUserId, long secondUserId) {
-        return jdbc.sql("SELECT COUNT(*) FROM reports_blocks WHERE type = 'block' AND ((reporter_id = ? AND target_id = ?) OR (reporter_id = ? AND target_id = ?))")
-                .params(firstUserId, secondUserId, secondUserId, firstUserId).query(Long.class).single() > 0;
+        return reportsBlocks.existsBlockedPair(firstUserId, secondUserId);
     }
 
     public long countAcceptedForReferrer(long referrerId) {
-        return jdbc.sql("SELECT COUNT(*) FROM conversations WHERE referrer_id = ? AND status IN ('accepted','completed')")
-                .param(referrerId).query(Long.class).single();
+        return conversations.countByReferrerIdAndStatusIn(referrerId, ACTIVE_STATUSES);
     }
 
     public int slotCapacity(long referrerId) {
-        return jdbc.sql("SELECT slot_capacity FROM referrer_profiles WHERE user_id = ?")
-                .param(referrerId).query(Integer.class).single();
+        return referrerProfiles.findById(referrerId).map(rp -> (int) rp.getSlotCapacity())
+                .orElseThrow(() -> new NoSuchElementException("No referrer profile for user " + referrerId));
     }
 
     public int incrementMessageCount(long conversationId, int messageCap) {
-        return jdbc.sql("UPDATE conversations SET message_count = message_count + 1 WHERE id = ? AND status = 'accepted' AND message_count < ?")
-                .params(conversationId, messageCap).update();
+        return conversations.incrementMessageCount(conversationId, messageCap);
     }
 
     public void insertMessage(long conversationId, long senderId, String body) {
-        jdbc.sql("INSERT INTO messages (conversation_id, sender_id, body) VALUES (?, ?, ?)")
-                .params(conversationId, senderId, body).update();
+        Conversation conversation = conversations.getReferenceById(conversationId);
+        User sender = users.getReferenceById(senderId);
+        Message message = new Message();
+        message.setConversation(conversation);
+        message.setSender(sender);
+        message.setBody(body);
+        message.setSentAt(Instant.now());
+        messages.save(message);
     }
 
     public int messageCount(long conversationId) {
-        return jdbc.sql("SELECT message_count FROM conversations WHERE id = ?").param(conversationId)
-                .query(Integer.class).single();
+        return conversations.findById(conversationId).map(Conversation::getMessageCount).map(Short::intValue)
+                .orElseThrow(() -> new NoSuchElementException("No conversation " + conversationId));
     }
 
     public long createConversation(long seekerId, long referrerId, String note) {
-        KeyHolder keys = new GeneratedKeyHolder();
-        jdbc.sql("INSERT INTO conversations (seeker_id, referrer_id, initiated_by, first_message) VALUES (?, ?, 'seeker', ?)")
-                .params(seekerId, referrerId, note).update(keys);
-        return Objects.requireNonNull(keys.getKey()).longValue();
+        User seeker = users.getReferenceById(seekerId);
+        User referrer = users.getReferenceById(referrerId);
+        Conversation conversation = new Conversation();
+        conversation.setSeeker(seeker);
+        conversation.setReferrer(referrer);
+        conversation.setInitiatedBy("seeker");
+        conversation.setFirstMessage(note);
+        conversation.setStatus("pending");
+        conversation.setCreatedAt(Instant.now());
+        conversation = conversations.save(conversation);
+        return conversation.getId();
     }
 
     public void acceptDemoConversation(long conversationId, long referrerId, String seekerName) {
-        jdbc.sql("UPDATE conversations SET status = 'accepted', message_count = 1 WHERE id = ?")
-                .param(conversationId).update();
+        conversations.acceptDemo(conversationId);
         String trimmed = seekerName == null ? "" : seekerName.trim();
         int space = trimmed.indexOf(' ');
         String firstName = space > 0 ? trimmed.substring(0, space) : trimmed;
@@ -114,24 +122,32 @@ public class ConversationRepository {
     }
 
     public void accept(long conversationId) {
-        jdbc.sql("UPDATE conversations SET status = 'accepted' WHERE id = ? AND status = 'pending'")
-                .param(conversationId).update();
+        conversations.acceptPending(conversationId);
     }
 
     public void decline(long conversationId) {
-        jdbc.sql("UPDATE conversations SET status = 'declined' WHERE id = ? AND status = 'pending'")
-                .param(conversationId).update();
+        conversations.declinePending(conversationId);
     }
 
-    private static ConversationView view(ResultSet rs, long userId) throws SQLException {
-        boolean isSeeker = rs.getLong("seeker_id") == userId;
-        return new ConversationView(rs.getLong("id"), rs.getString("status"), rs.getString("initiated_by"),
-                isSeeker ? "seeker" : "referrer", rs.getInt("message_count"),
-                isSeeker ? rs.getLong("referrer_id") : rs.getLong("seeker_id"),
-                isSeeker ? rs.getString("referrer_name") : rs.getString("seeker_name"),
-                isSeeker ? rs.getString("job_title") : null, rs.getString("company_name"),
-                rs.getString("first_message"), rs.getString("last_message"));
+    private ConversationView view(Conversation c, long userId) {
+        boolean isSeeker = c.getSeeker().getId() == userId;
+        User other = isSeeker ? c.getReferrer() : c.getSeeker();
+        String otherTitle = null;
+        String companyName = null;
+        if (isSeeker) {
+            otherTitle = referrerProfiles.findById(other.getId()).map(ReferrerProfile::getJobTitle).orElse(null);
+            companyName = referrerProfiles.findById(other.getId()).map(ReferrerProfile::getCompany)
+                    .map(Company::getName).orElse(null);
+        } else {
+            companyName = referrerProfiles.findById(userId).map(ReferrerProfile::getCompany)
+                    .map(Company::getName).orElse(null);
+        }
+        String lastMessage = messages.findFirstByConversationIdOrderByIdDesc(c.getId())
+                .map(Message::getBody).orElse(null);
+        return new ConversationView(c.getId(), c.getStatus(), c.getInitiatedBy(), isSeeker ? "seeker" : "referrer",
+                c.getMessageCount(), other.getId(), other.getName(), otherTitle, companyName, c.getFirstMessage(),
+                lastMessage);
     }
 
-        public record ReferrerTarget(long companyId, int slotCapacity, String authProvider) {}
+    public record ReferrerTarget(long companyId, int slotCapacity, String authProvider) {}
 }
