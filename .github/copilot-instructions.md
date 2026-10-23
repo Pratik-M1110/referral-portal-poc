@@ -1,0 +1,1 @@
+When helping set up or run this repository on a new computer, read `docs/SETUP-ON-NEW-SYSTEM.md` first and follow its Windows PowerShell steps. Do not ask the user to share or commit real `.env` values, OAuth credentials, SMTP credentials, database dumps, or resume data. Distinguish local demo configuration from production configuration.

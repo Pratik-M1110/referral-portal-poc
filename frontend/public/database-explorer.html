@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>Referral Portal | Database Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #0b1020;
+      --white: #131b2b;
+      --ink: #e7edf7;
+      --muted: #a5b1c2;
+      --line: #2d394d;
+      --blue: #7caeff;
+      --red: #ff8178;
+      --yellow: #ffd166;
+      --green: #57d999;
+      --blue-soft: #1b2c49;
+      --red-soft: #382126;
+      --yellow-soft: #352e1d;
+      --green-soft: #193529;
+      --edge: #8290a5;
+      --edge-label: #0b1020;
+      color-scheme: dark;
+      --mono: "DM Mono", Consolas, monospace;
+      --sans: "Manrope", "Segoe UI", sans-serif;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--paper); }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between;
+      min-height: 64px; padding: 0 24px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; gap: 12px; align-items: center; font-size: 14px; font-weight: 800; }
+    .brand-mark { display: flex; gap: 3px; }
+    .brand-mark i { display: block; width: 8px; height: 8px; border-radius: 50%; }
+    .brand-mark i:nth-child(1) { background: var(--blue); }
+    .brand-mark i:nth-child(2) { background: var(--red); }
+    .brand-mark i:nth-child(3) { background: var(--yellow); }
+    .brand-mark i:nth-child(4) { background: var(--green); }
+    .top-meta { color: var(--muted); font: 11px var(--mono); letter-spacing: 0; }
+    .app-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: calc(100vh - 64px); }
+    .rail { padding: 22px 14px; border-right: 1px solid var(--line); background: #f0f2ed; }
+    .rail-kicker, .eyebrow { color: var(--muted); font: 10px var(--mono); letter-spacing: 0; text-transform: uppercase; }
+    .rail-kicker { padding: 0 10px; margin: 0 0 8px; }
+    .journey-list { display: grid; gap: 4px; }
+    .journey-button {
+      display: grid; grid-template-columns: 25px 1fr; gap: 9px; align-items: center; width: 100%; padding: 9px 10px;
+      border: 1px solid transparent; border-radius: 6px; background: transparent; text-align: left; cursor: pointer;
+    }
+    .journey-button:hover { background: #fff; }
+    .journey-button[aria-current="step"] { border-color: #cbd9f7; background: var(--blue-soft); }
+    .journey-number { display: grid; place-items: center; width: 23px; height: 23px; border: 1px solid var(--line); border-radius: 50%; background: var(--white); color: var(--muted); font: 10px var(--mono); }
+    .journey-button[aria-current="step"] .journey-number { border-color: var(--blue); color: var(--blue); }
+    .journey-name { font-size: 12px; font-weight: 700; line-height: 1.35; }
+    .rail-rule { height: 1px; margin: 20px 8px; background: var(--line); }
+    .rail-note { margin: 0 8px; padding: 12px; border-left: 3px solid var(--yellow); background: var(--yellow-soft); font-size: 11px; line-height: 1.6; }
+    .rail-note strong { display: block; margin-bottom: 3px; }
+    .main { min-width: 0; padding: 24px clamp(14px, 2.2vw, 32px) 56px; }
+    .heading-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 18px; }
+    h1 { margin: 5px 0 6px; font-size: clamp(25px, 3vw, 38px); line-height: 1.08; letter-spacing: 0; }
+    .lede { max-width: 740px; margin: 0; color: #5f676e; font-size: 13px; line-height: 1.7; }
+    .progress-chip { flex: 0 0 auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--white); font: 10px var(--mono); }
+    .progress-chip b { color: var(--green); }
+    .view-tabs { display: flex; gap: 5px; margin: 20px 0 14px; border-bottom: 1px solid var(--line); }
+    .view-tab { padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+    .view-tab[aria-selected="true"] { border-bottom-color: var(--blue); color: var(--ink); }
+    .view { display: none; }
+    .view.active { display: block; animation: appear .28s ease both; }
+    @keyframes appear { from { opacity: .45; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+    .map-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--line); border-bottom: 0; border-radius: 7px 7px 0 0; background: var(--white); }
+    .search-wrap { position: relative; flex: 1 1 230px; }
+    .search-wrap input { width: 100%; height: 36px; padding: 0 11px 0 32px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: #fbfcfa; font-size: 12px; }
+    .search-wrap input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px #4285f41c; }
+    .search-symbol { position: absolute; top: 10px; left: 11px; color: var(--muted); font-size: 12px; }
+    .tool-button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--white); font-size: 11px; font-weight: 700; cursor: pointer; }
+    .tool-button:hover { border-color: var(--blue); }
+    .tool-button.active { border-color: var(--blue); background: var(--blue-soft); color: #235caf; }
+    .legend { display: flex; gap: 12px; align-items: center; margin-left: auto; color: var(--muted); font-size: 10px; }
+    .legend span { display: inline-flex; gap: 5px; align-items: center; }
+    .legend i { width: 8px; height: 8px; border-radius: 2px; }
+    .map-layout { display: grid; grid-template-columns: minmax(0,1fr) 292px; min-width: 0; border: 1px solid var(--line); border-radius: 0 0 7px 7px; background: var(--white); overflow: hidden; }
+    .map-scroll { min-width: 0; overflow: auto; background-color: #fbfcfa; background-image: radial-gradient(#d9dfda 0.8px, transparent .8px); background-size: 19px 19px; }
+    .map-canvas { position: relative; width: 1540px; height: 930px; overflow: hidden; }
+    .map-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .group-label { position: absolute; padding: 5px 8px; border-radius: 4px; font: 10px var(--mono); text-transform: uppercase; }
+    .group-label.people { top: 18px; left: 34px; background: var(--blue-soft); color: #245eb4; }
+    .group-label.actions { top: 18px; left: 520px; background: var(--red-soft); color: #b44439; }
+    .group-label.event { top: 535px; left: 31px; background: var(--green-soft); color: #197c4b; }
+    .group-label.security { top: 18px; left: 1100px; background: var(--yellow-soft); color: #8a6500; }
+    .table-node { position: absolute; z-index: 2; width: 190px; min-height: 112px; padding: 0; border: 1px solid #d6ddd8; border-top: 4px solid var(--node-color, var(--blue)); border-radius: 6px; background: #fff; box-shadow: 0 3px 9px #20252a0c; transition: box-shadow .15s, opacity .18s, transform .18s, border-color .15s; }
+    .table-node:hover { z-index: 4; box-shadow: 0 7px 19px #20252a18; }
+    .table-node.selected { z-index: 5; border-color: var(--blue); box-shadow: 0 0 0 3px #4285f426, 0 7px 19px #20252a12; }
+    .table-node.journey-active { animation: node-pop .45s ease both; box-shadow: 0 0 0 4px #fbbc0450, 0 8px 19px #20252a1a; }
+    .table-node.dimmed { opacity: .18; }
+    .table-node.filtered { display: none; }
+    @keyframes node-pop { 0% { transform: scale(.96); } 55% { transform: scale(1.035); } 100% { transform: scale(1); } }
+    .node-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 8px 8px 3px; }
+    .node-title { padding: 0; border: 0; background: none; font: 12px var(--mono); font-weight: 500; cursor: pointer; text-align: left; }
+    .node-title:hover { color: var(--blue); }
+    .drag-handle { flex: 0 0 auto; width: 25px; height: 22px; border: 1px solid var(--line); border-radius: 3px; background: #fafbf9; color: #747b80; font: 11px var(--mono); cursor: grab; touch-action: none; }
+    .drag-handle:active { cursor: grabbing; background: var(--yellow-soft); }
+    .node-fields { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 8px 8px; }
+    .field-pill { padding: 3px 5px; border-radius: 3px; background: #eff2ef; color: #646c70; font: 9px var(--mono); }
+    .field-pill.pk { background: var(--yellow-soft); color: #755900; }
+    .field-pill.fk { background: var(--blue-soft); color: #245eb4; }
+    .node-foot { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 6px 8px; border-top: 1px solid #edf0ed; color: var(--muted); font-size: 9px; }
+    .status-dot { display: inline-flex; gap: 5px; align-items: center; }
+    .status-dot::before { width: 6px; height: 6px; border-radius: 50%; background: var(--green); content: ""; }
+    .status-dot.partial::before { background: var(--yellow); }
+    .status-dot.planned::before { background: #9ca4a5; }
+    .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; opacity: .58; marker-end: url(#arrow); transition: opacity .18s, stroke .18s, stroke-width .18s; }
+    .edge.active { stroke: var(--blue); stroke-width: 2.8; opacity: .95; marker-end: url(#arrow-active); }
+    .edge.dimmed { opacity: .08; }
+    .edge-label { fill: var(--muted); font: 9px var(--mono); paint-order: stroke; stroke: var(--edge-label); stroke-width: 4px; stroke-linejoin: round; }
+    .edge-label.active { fill: #a9caff; font-weight: 700; }
+    .inspector { min-width: 0; padding: 18px 16px; border-left: 1px solid var(--line); background: #fff; }
+    .inspector-top { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
+    .inspector h2 { margin: 8px 0 6px; font: 17px var(--mono); font-weight: 500; }
+    .inspector-summary { color: #5f676e; font-size: 11px; line-height: 1.65; }
+    .status-tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 3px; background: var(--green-soft); color: #167646; font: 9px var(--mono); text-transform: uppercase; }
+    .status-tag.partial { background: var(--yellow-soft); color: #7e6100; }
+    .status-tag.planned { background: #edf0ee; color: #626b69; }
+    .status-tag { color: #8ce6b7; }
+    .status-tag.partial { color: #ffe29a; }
+    .inspect-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .inspect-section h3 { margin: 0 0 9px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .column-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eef1ee; font: 10px var(--mono); }
+    .column-row small { color: var(--muted); font: 9px var(--sans); text-align: right; }
+    .key-badge { margin-left: 4px; color: #997400; font: 8px var(--mono); }
+    .relation-button { display: block; width: 100%; margin: 5px 0; padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; background: #fbfcfa; text-align: left; font: 9px var(--mono); cursor: pointer; }
+    .relation-button:hover { border-color: var(--blue); background: var(--blue-soft); }
+    .note-box { padding: 9px; border-left: 3px solid var(--yellow); background: var(--yellow-soft); color: #67541a; font-size: 10px; line-height: 1.6; }
+    .journey-panel { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(260px,.65fr); gap: 12px; margin: 0 0 12px; }
+    .journey-card, .journey-side { border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
+    .journey-card { padding: 15px 17px; }
+    .journey-card h2 { margin: 5px 0; font-size: 19px; }
+    .journey-copy { min-height: 42px; margin: 6px 0 12px; color: #59636a; font-size: 12px; line-height: 1.7; }
+    .step-track { display: flex; gap: 5px; align-items: center; overflow-x: auto; padding: 5px 0 10px; }
+    .step-pill { position: relative; flex: 0 0 auto; max-width: 180px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: #fafbf9; color: #687174; font-size: 10px; }
+    .step-pill.current { border-color: var(--blue); background: var(--blue-soft); color: #245eb4; font-weight: 800; }
+    .step-pill.done { border-color: #acd9bd; background: var(--green-soft); color: #167646; }
+    .step-arrow { color: #929b9a; font: 12px var(--mono); }
+    .journey-actions { display: flex; justify-content: space-between; align-items: center; gap: 9px; margin-top: 6px; }
+    .action-group { display: flex; gap: 6px; }
+    .primary-button { min-height: 34px; padding: 0 12px; border: 0; border-radius: 4px; background: var(--ink); color: white; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .primary-button:hover { background: #384148; }
+    .primary-button:disabled, .tool-button:disabled { cursor: not-allowed; opacity: .45; }
+    .step-count { color: var(--muted); font: 10px var(--mono); }
+    .journey-side { padding: 15px; background: var(--yellow-soft); }
+    .journey-side h3 { margin: 0 0 8px; font-size: 12px; }
+    .journey-side p { margin: 0; color: #ffe29a; font-size: 11px; line-height: 1.65; }
+    .flow-data { margin: 10px 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
+    .flow-data h3 { margin: 0 0 10px; font-size: 12px; }
+    .flow-data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .flow-data-group { min-width: 0; }
+    .flow-data-label { display: block; margin-bottom: 6px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .flow-table-list { display: flex; flex-wrap: wrap; gap: 5px; }
+    .flow-table { padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; background: #fbfcfa; font: 10px var(--mono); cursor: pointer; }
+    .flow-table:hover, .flow-table:focus-visible { border-color: var(--blue); outline: 0; background: var(--blue-soft); }
+    .flow-data-empty { color: #8a9292; font-size: 11px; }
+    .flow-status { margin: 9px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .flow-bead { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 2px solid #a27500; border-radius: 50%; background: var(--yellow); vertical-align: middle; }
+    :root { --edge: #8290a5; --edge-label: #0b1020; }
+    html, body { background: var(--paper); color: var(--ink); color-scheme: dark; }
+    .topbar { background: rgba(19,27,43,.97); }
+    .brand span { color: var(--muted) !important; }
+    .rail { background: #101827; }
+    .journey-button:hover { background: #1a2537; }
+    .journey-number, .progress-chip, .map-toolbar, .map-layout, .inspector,
+    .journey-card, .flow-data, .dictionary-card, .tool-button { background-color: var(--white); }
+    .lede, .inspector-summary, .journey-copy, .column-row small { color: #b7c2d2; }
+    .search-wrap input, .relation-button, .drag-handle, .step-pill,
+    .flow-table { background: #0e1625; color: var(--ink); }
+    .step-pill { color: #c2ccda; }
+    .step-pill.current { background: #1b2c49; color: #b9d2ff; }
+    .step-pill.done { background: #193529; color: #8ce6b7; }
+    .step-arrow { color: #a5b1c2; }
+    .map-scroll { background-color: #0e1625; background-image: radial-gradient(#283448 .8px, transparent .8px); }
+    .group-label.people, .field-pill.fk, .edge-label.active { color: #a9caff; }
+    .group-label.actions { color: #ffaaa3; }
+    .group-label.event { color: #8ce6b7; }
+    .group-label.security { color: #ffe29a; }
+    .table-node { border-color: var(--line); background: #131b2b; box-shadow: 0 3px 12px #0006; }
+    .table-node:hover { box-shadow: 0 7px 20px #0009; }
+    .table-node.selected { box-shadow: 0 0 0 3px #7caeff38, 0 7px 19px #0008; }
+    .node-foot { border-color: var(--line); }
+    .drag-handle { color: var(--muted); }
+    .field-pill { background: #202b3d; color: #c2ccda; }
+    .field-pill.pk, .key-badge { color: #ffe29a; }
+    .column-row { border-color: #263246; }
+    .primary-button { background: #dbe8ff; color: #101827; }
+    .primary-button:hover { background: #fff; }
+    .note-box { color: #ffe29a; }
+    .flow-table:hover, .flow-table:focus-visible, .relation-button:hover { color: var(--ink); }
+    .tool-button.active { color: #b9d2ff; }
+    .relation-button span { color: var(--muted) !important; }
+    .status-tag.planned { color: #c2ccda; }
+    .map-search input { color: var(--ink); }
+    ::selection { background: #41649a; color: #fff; }
+    .glossary { grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 0 18px; }
+    .glossary div { padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+    .glossary dt { color: var(--ink); font: 11px var(--mono); font-weight: 500; }
+    .glossary dd { margin: 5px 0 0; color: #b7c2d2; font-size: 11px; line-height: 1.6; }
+    .dictionary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 9px; }
+    .dictionary-card { padding: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--white); text-align: left; cursor: pointer; }
+    .dictionary-card:hover, .dictionary-card:focus-visible { border-color: var(--blue); outline: 0; box-shadow: 0 0 0 2px #4285f41b; }
+    .dictionary-card h3 { margin: 0 0 5px; font: 13px var(--mono); }
+    .dictionary-card p { margin: 0; color: #687174; font-size: 11px; line-height: 1.55; }
+    .dictionary-card .status-tag { margin-top: 10px; }
+    .glossary { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 0 18px; }
+    .glossary div { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .glossary dt { font: 11px var(--mono); font-weight: 500; }
+    .glossary dd { margin: 5px 0 0; color: #687174; font-size: 11px; line-height: 1.6; }
+    .callout { margin-top: 14px; padding: 11px 13px; border-left: 3px solid var(--red); background: var(--red-soft); color: #6f4844; font-size: 11px; line-height: 1.6; }
+    .footer-note { margin-top: 25px; padding-top: 12px; border-top: 1px solid var(--line); color: #838a89; font: 9px var(--mono); }
+    .toast { position: fixed; right: 18px; bottom: 18px; z-index: 50; max-width: 310px; padding: 11px 14px; border-radius: 5px; background: var(--ink); color: white; box-shadow: 0 7px 20px #20252a35; font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .dictionary-card p, .glossary dd { color: #b7c2d2; }
+    .glossary { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .glossary div { padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: #111a2a; }
+    .glossary dt { color: #b9d2ff; font-size: 12px; font-weight: 700; }
+    .glossary dd { margin: 7px 0 0; font-size: 12px; line-height: 1.7; }
+    .status-tag { color: #8ce6b7; }
+    .status-tag.partial { color: #ffe29a; }
+    .status-tag.planned { background: #273244; color: #c2ccda; }
+    .callout { color: #ffaaa3; }
+    .footer-note { color: #9ba8ba; }
+    .toast { background: #202d41; color: var(--ink); }
+    .primary-button { background: #dbe8ff; color: #101827; }
+    .primary-button:hover { background: #fff; }
+    @media (max-width: 1050px) {
+      .app-shell { grid-template-columns: 220px minmax(0,1fr); }
+      .map-layout { grid-template-columns: minmax(0,1fr); }
+      .inspector { border-top: 1px solid var(--line); border-left: 0; }
+      .inspector-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+      .inspector-section { margin-top: 9px; }
+    }
+    @media (max-width: 700px) {
+      .topbar { min-height: 54px; padding: 0 12px; }
+      .top-meta { display: none; }
+      .app-shell { display: block; min-height: calc(100vh - 54px); }
+      .rail { padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+      .rail-kicker, .rail-rule, .rail-note { display: none; }
+      .journey-list { display: flex; width: max-content; gap: 4px; }
+      .journey-button { grid-template-columns: 22px 1fr; width: auto; min-width: 112px; padding: 7px; }
+      .journey-name { font-size: 10px; }
+      .main { padding: 17px 10px 35px; }
+      .heading-row { align-items: flex-start; }
+      .progress-chip { margin-top: 13px; font-size: 9px; }
+      .journey-panel { grid-template-columns: 1fr; }
+      .journey-side { order: -1; }
+      .legend { flex-basis: 100%; margin-left: 0; }
+      .map-canvas { width: 1320px; height: 900px; }
+      .inspector-details { grid-template-columns: 1fr; }
+      .view-tab { padding: 9px 10px; font-size: 11px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span> REFERRAL PORTAL <span style="color:#7a8284;font-weight:500">/ DATA FIELD GUIDE</span></div>
+    <div class="top-meta">MYSQL 8 / CURRENT APP DATA</div>
+  </header>
+  <div class="app-shell">
+    <aside class="rail" aria-label="Database journeys">
+      <p class="rail-kicker">Follow the data</p>
+      <nav class="journey-list" id="journey-list"></nav>
+      <div class="rail-rule"></div>
+      <div class="rail-note"><strong>One person, one account.</strong>Their seeker profile and verified referrer profile attach to the same user ID. No identity cloning required.</div>
+    </aside>
+    <main class="main">
+      <div class="heading-row">
+        <div>
+          <div class="eyebrow">A guided tour of the data behind the app</div>
+          <h1>Where does each click go?</h1>
+          <p class="lede">See how sign-in, profiles, meetings, chat, and referrals use the database. Select a table to view its fields and relationships.</p>
+        </div>
+        <div class="progress-chip"><b id="table-count">17</b> TABLES <span aria-hidden="true">/</span> <b id="journey-count">9</b> JOURNEYS</div>
+      </div>
+
+      <div class="view-tabs" role="tablist" aria-label="Explorer modes">
+        <button class="view-tab" id="tab-map" role="tab" aria-selected="true" aria-controls="view-map">Relationship map</button>
+        <button class="view-tab" id="tab-tables" role="tab" aria-selected="false" aria-controls="view-tables">Table dictionary</button>
+        <button class="view-tab" id="tab-glossary" role="tab" aria-selected="false" aria-controls="view-glossary">Tiny glossary</button>
+      </div>
+
+      <section class="view active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+        <div class="journey-panel">
+          <article class="journey-card">
+            <div class="eyebrow" id="journey-eyebrow">JOURNEY 01 / FIRST SIGN-IN</div>
+            <h2 id="journey-title">A person arrives</h2>
+            <p class="journey-copy" id="journey-copy"></p>
+            <div class="step-track" id="step-track" aria-label="Journey steps"></div>
+            <div class="journey-actions">
+              <span class="step-count" id="step-count"></span>
+              <div class="action-group">
+                <button class="tool-button" id="previous-step" type="button">Back</button>
+                <button class="primary-button" id="next-step" type="button">Next step</button>
+              </div>
+            </div>
+          </article>
+          <aside class="journey-side">
+            <h3><span class="flow-bead" aria-hidden="true"></span>What this means</h3>
+            <p id="journey-explainer"></p>
+          </aside>
+        </div>
+        <section class="flow-data" aria-labelledby="flow-data-title">
+          <h3 id="flow-data-title">Which database tables are involved?</h3>
+          <div class="flow-data-grid">
+            <div class="flow-data-group"><span class="flow-data-label">Read / checked</span><div class="flow-table-list" id="flow-reads"></div></div>
+            <div class="flow-data-group"><span class="flow-data-label">Created / updated / deleted</span><div class="flow-table-list" id="flow-writes"></div></div>
+          </div>
+          <p class="flow-status" id="flow-status"></p>
+        </section>
+
+        <div class="map-toolbar">
+          <label class="search-wrap"><span class="search-symbol" aria-hidden="true">/</span><span class="sr-only">Search tables</span><input id="table-search" type="search" placeholder="Find a table, such as email_otps" autocomplete="off"></label>
+          <button class="tool-button active" id="connections-toggle" type="button" aria-pressed="true">Show relationships</button>
+          <button class="tool-button" id="reset-map" type="button">Reset positions</button>
+          <div class="legend" aria-label="Table status legend">
+            <span><i style="background:var(--green)"></i>Active</span><span><i style="background:var(--yellow)"></i>Partial</span><span><i style="background:#9ca4a5"></i>Planned</span>
+          </div>
+        </div>
+        <div class="map-layout">
+          <div class="map-scroll" id="map-scroll" aria-label="Scrollable draggable database relationship map">
+            <div class="map-canvas" id="map-canvas">
+              <svg class="map-lines" id="map-lines" aria-hidden="true"></svg>
+              <div class="group-label people">People and companies</div>
+              <div class="group-label actions">Interest and conversations</div>
+              <div class="group-label event">Event, trust, and alerts</div>
+              <div class="group-label security">Verification and files</div>
+              <div id="nodes"></div>
+            </div>
+          </div>
+          <aside class="inspector" id="inspector" aria-live="polite"></aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-tables" role="tabpanel" aria-labelledby="tab-tables">
+        <div class="map-toolbar" style="border:1px solid var(--line);border-radius:6px 6px 0 0">
+          <label class="search-wrap"><span class="search-symbol" aria-hidden="true">/</span><span class="sr-only">Filter table dictionary</span><input id="dictionary-search" type="search" placeholder="Filter table dictionary"></label>
+          <div class="legend"><span>Click any table to open it on the map.</span></div>
+        </div>
+        <div class="dictionary-grid" id="dictionary-grid"></div>
+      </section>
+
+      <section class="view" id="view-glossary" role="tabpanel" aria-labelledby="tab-glossary">
+        <article class="journey-card">
+          <div class="eyebrow">PLAIN ENGLISH, NO DATABASE DEGREE REQUIRED</div>
+          <h2>Small words with large consequences</h2>
+          <dl class="glossary" id="glossary-list"></dl>
+          <div class="callout"><strong>Deletion is permanent.</strong> Account deletion removes that person's data. The company row remains because a company can have many employees.</div>
+        </article>
+      </section>
+      <div class="footer-note">SCHEMA SOURCE: FLYWAY / STATUS LABELS DESCRIBE THE CURRENT APPLICATION CODE</div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const tables = [
+      { id:'users', group:'people', x:525, y:86, color:'var(--blue)', status:'active', primary:'id', summary:'The central record for each human. A person has one account whether they seek a job, refer someone, or do both.', columns:[['id','Primary key; internal person ID','PK'],['name','Name from Google or GitHub'],['email','Sign-in email; unique and lowercased','UNIQUE'],['auth_provider','google, github, or demo'],['is_admin','Organizer flag; admin screens are not built'],['consent_at','When consent was recorded'],['created_at','Account creation time']], constraints:['email is UNIQUE.','No passwords are stored.'], code:'Active: created at first successful OAuth login. Returning sign-in reuses the row by email.' },
+      { id:'profiles', group:'people', x:170, y:48, color:'var(--blue)', status:'active', primary:'user_id', summary:'The seeker profile: skills, experience, pitch, and links.', columns:[['user_id','The person who owns this profile','PK, FK -> users.id'],['pitch','Short introduction; 200 chars'],['experience_level','student, fresher, 1-3, 3-6, 6+'],['skills','JSON list'],['roles_wanted','JSON list'],['resume_url','Reserved; file endpoint is not built'],['github_url','GitHub profile link'],['linkedin_url','LinkedIn profile link'],['is_seeker','Seeker flag; defaults true'],['hide_from_my_company','Privacy preference; enforcement pending']], constraints:['One profile per user because user_id is the primary key.','Deleting the user cascades to this row.'], code:'Active: loaded and saved from the Profile page.' },
+      { id:'referrer_profiles', group:'people', x:870, y:48, color:'var(--green)', status:'active', primary:'user_id', summary:'The employee/referrer side of the same person. It links a user to a company after work-email verification.', columns:[['user_id','Person who is the referrer','PK, FK -> users.id'],['company_id','Their company','FK -> companies.id'],['work_email','Verified work address','UNIQUE'],['verified_at','Null until OTP succeeds'],['is_referrer','Referrer role flag'],['open_to_meet','Accept meeting requests?'],['slot_capacity','Accepted conversations allowed; default 3'],['referral_limit','Referral limit; default 10'],['job_title','Employee title']], constraints:['One referrer profile per user.','Company and work email are unique-linked.'], code:'Active: created after a valid 6-digit OTP is confirmed.' },
+      { id:'companies', group:'people', x:1190, y:247, color:'var(--yellow)', status:'active', primary:'id', summary:'Organizations in the directory. A verified work-email domain can create a company automatically.', columns:[['id','Company ID','PK'],['name','Display name'],['email_domain','Domain, unique','UNIQUE'],['booth_label','Event booth label'],['is_sponsor','Sponsor marker']], constraints:['A company can have many employees and open roles.','Company row remains if one employee deletes their account.'], code:'Active: seed data and work-email verification populate this table.' },
+      { id:'open_roles', group:'people', x:1370, y:358, color:'var(--yellow)', status:'active', primary:'id', summary:'Job roles listed under a company.', columns:[['id','Role ID','PK'],['company_id','Owning company','FK -> companies.id'],['title','Role title'],['level','Experience level'],['skills','JSON list'],['link','Application/job details link']], constraints:['Deleting a company cascades to its roles.'], code:'Read by the company directory; sample roles are seeded.' },
+      { id:'email_otps', group:'security', x:1050, y:65, color:'var(--red)', status:'active', primary:'id', summary:'Temporary work-email verification challenges. Only a hash of the six-digit code is stored.', columns:[['id','Challenge ID','PK'],['user_id','Requesting user','FK -> users.id'],['work_email','Address being checked'],['code_hash','BCrypt hash; never plain text'],['expires_at','10 minute expiration'],['attempts','Wrong tries; locks at five'],['created_at','Rate-limit timestamp']], constraints:['One code per user/email is checked at a time: newest code wins.','Account-level send limits: one per minute and three per 15 minutes.'], code:'Active: issue and confirm endpoints. Email transport uses Brevo SMTP.' },
+      { id:'resume_files', group:'security', x:1370, y:90, color:'var(--red)', status:'planned', primary:'user_id', summary:'Reserved storage for private PDF resume bytes. Upload/download endpoints are not implemented.', columns:[['user_id','Owning person','PK, FK -> users.id'],['filename','Original file name'],['content_type','Expected application/pdf'],['size_bytes','File size'],['sha256','Integrity digest'],['data','PDF bytes'],['uploaded_at','Upload time']], constraints:['Deleting the user cascades to the resume.'], code:'Schema exists. Resume upload and download are not implemented.' },
+      { id:'wishlists', group:'actions', x:350, y:330, color:'var(--blue)', status:'active', primary:'seeker_id + company_id', summary:'A many-to-many link: which companies a seeker is interested in.', columns:[['seeker_id','Person who saved it','PK, FK -> users.id'],['company_id','Saved company','PK, FK -> companies.id'],['created_at','When saved']], constraints:['Composite primary key prevents saving the same company twice.','Application enforces a five-company maximum.'], code:'Active: add and remove wishlist actions.' },
+      { id:'conversations', group:'actions', x:610, y:490, color:'var(--red)', status:'active', primary:'id', summary:'A meeting request that can become a chat. One row connects one seeker to one referrer.', columns:[['id','Conversation ID','PK'],['seeker_id','Person seeking a meeting','FK -> users.id'],['referrer_id','Person receiving the request','FK -> users.id'],['initiated_by','seeker or referrer'],['first_message','Request note; max 200 chars'],['status','pending, accepted, declined, completed'],['message_count','Shared counter; maximum 20'],['happened','Reserved event outcome'],['created_at','Request time']], constraints:['Unique seeker/referrer pair.','Self-conversations rejected.','Message counter capped by both guarded UPDATE and CHECK.','No cascade to users; app explicitly deletes these first.'], code:'Active: requests, decisions, conversations, and atomic message cap.' },
+      { id:'messages', group:'actions', x:900, y:560, color:'var(--red)', status:'active', primary:'id', summary:'The actual chat messages. Both participants share the conversation message limit.', columns:[['id','Message ID','PK'],['conversation_id','Parent chat','FK -> conversations.id'],['sender_id','Person who sent it','FK -> users.id'],['body','Text; max 500 chars'],['sent_at','Send time']], constraints:['Conversation deletion cascades to messages.','Messages can contain contact details; retention job is not built.'], code:'Active: chat reads and sends; message body is never rendered as HTML.' },
+      { id:'reviews', group:'actions', x:240, y:600, color:'var(--red)', status:'planned', primary:'referrer_id + candidate_id', summary:'Reserved for employee Save or Pass decisions and private candidate notes.', columns:[['referrer_id','Reviewing employee','PK, FK -> users.id'],['candidate_id','Candidate','PK, FK -> users.id'],['action','save or pass'],['private_note','Visible only to the referrer']], constraints:['Composite primary key means one review per pair.','No self-review.','No cascade to users; account deletion explicitly removes reviews.'], code:'Schema exists; Save and Pass UI/API are not implemented.' },
+      { id:'referrals', group:'actions', x:1190, y:510, color:'var(--green)', status:'partial', primary:'id', summary:'A formal referral from an employee to a candidate at a company.', columns:[['id','Referral ID','PK'],['referrer_id','Employee making referral','FK -> users.id'],['candidate_id','Person referred','FK -> users.id'],['company_id','Target company','FK -> companies.id'],['role_id','Optional role','FK -> open_roles.id'],['endorsement_note','Up to 500 chars'],['status','submitted, under_review, interview, closed'],['created_at / updated_at','Lifecycle timestamps']], constraints:['One referral per referrer/candidate/company.','No self-referral.','No cascade to users; account deletion explicitly removes referrals.'], code:'Partial: received referrals can be listed; the real Refer workflow is not implemented.' },
+      { id:'badges', group:'event', x:75, y:220, color:'var(--yellow)', status:'active', primary:'user_id', summary:'One QR badge per user. The QR contains a random token, not the database user ID.', columns:[['user_id','Badge owner','PK, FK -> users.id'],['qr_token','Random 128-bit token','UNIQUE'],['checked_in_at','Reserved check-in time']], constraints:['Created together with the users row.','Deleting the user cascades to the badge.'], code:'Active: badge screen shows the token as a QR code.' },
+      { id:'scans', group:'event', x:70, y:715, color:'var(--blue)', status:'planned', primary:'id', summary:'Reserved event-day log of one person scanning another person or a company QR.', columns:[['id','Scan ID','PK'],['scanner_id','Person who scans','FK -> users.id'],['scanned_user_id','Person scanned; optional','FK -> users.id'],['scanned_company_id','Company scanned; optional','FK -> companies.id'],['type','referrer_scan or company_interest'],['scanned_at','Scan time'],['synced_at','Offline sync time']], constraints:['Can point to a user or a company.','Index supports a scanner history.'], code:'Schema exists; camera scanning and scan endpoints are not implemented.' },
+      { id:'credit_ledger', group:'event', x:365, y:780, color:'var(--yellow)', status:'partial', primary:'id', summary:'An append-only history of request credits earned or spent.', columns:[['id','Ledger row','PK'],['user_id','Credit owner','FK -> users.id'],['delta','Positive or negative amount'],['reason','Why the credit changed'],['ref_id','Related item; optional'],['created_at','Ledger time']], constraints:['Request balance uses 3 + sum(delta) - seeker requests.'], code:'Partial: balance reads the table, but earning/spending credits is not implemented.' },
+      { id:'reports_blocks', group:'event', x:700, y:760, color:'var(--red)', status:'partial', primary:'id', summary:'A trust record: one person reports or blocks another person.', columns:[['id','Record ID','PK'],['reporter_id','Person taking action','FK -> users.id'],['target_id','Person affected','FK -> users.id'],['type','report or block'],['reason','Optional note'],['created_at','Action time']], constraints:['Both user references cascade on account deletion.'], code:'Partial: existing blocks are checked for chat/request rules; create/report UI is not built.' },
+      { id:'notifications', group:'event', x:1030, y:780, color:'var(--green)', status:'planned', primary:'id', summary:'An in-app notification queue for a user.', columns:[['id','Notification ID','PK'],['user_id','Recipient','FK -> users.id'],['type','Notification category'],['payload','Optional JSON details'],['read_at','Null until read'],['created_at','Creation time']], constraints:['Index accelerates unread notification lookup.','User deletion cascades to notifications.'], code:'Schema exists; notification persistence/UI is not implemented.' }
+    ];
+
+    const relations = [
+      ['users','profiles','user_id'], ['users','referrer_profiles','user_id'], ['companies','referrer_profiles','company_id'],
+      ['companies','open_roles','company_id'], ['users','badges','user_id'], ['users','email_otps','user_id'],
+      ['users','resume_files','user_id'], ['users','wishlists','seeker_id'], ['companies','wishlists','company_id'],
+      ['users','conversations','seeker / referrer'], ['conversations','messages','conversation_id'], ['users','messages','sender_id'],
+      ['users','reviews','referrer / candidate'], ['users','referrals','referrer / candidate'], ['companies','referrals','company_id'],
+      ['open_roles','referrals','role_id'], ['users','scans','scanner / scanned'], ['companies','scans','scanned_company_id'],
+      ['users','credit_ledger','user_id'], ['users','reports_blocks','reporter / target'], ['users','notifications','user_id']
+    ];
+
+    const journeys = [
+      { title:'Sign in', label:'GOOGLE OR GITHUB', steps:[
+        { title:'Find or create the account', copy:'After OAuth, the app looks up the account by email. A first sign-in creates the user; returning users keep the same account.', tables:['users','badges'], reads:['users'], writes:['users','badges'], explain:'Think of users as the one main account record. On first sign-in, the app also creates a badge and gives it a hard-to-guess QR token; it does not put the user ID in the QR.', status:'Implemented. Demo seed data may add conversations and referrals in development.' },
+        { title:'Choose where to go next', copy:'The app checks whether a seeker profile exists and whether the account has verified referrer access.', tables:['profiles','referrer_profiles'], reads:['profiles','referrer_profiles'], writes:[], explain:'The app checks for a profile row to decide whether setup is complete. It also checks for a verified referrer row to unlock referrer features; these are roles on the same account, not separate accounts.', status:'Implemented.' }
+      ]},
+      { title:'Profile', label:'SEEKER PROFILE', steps:[
+        { title:'Load the profile form', copy:'The app loads the current user’s profile when one exists, so the person can create or edit it.', tables:['profiles'], reads:['profiles'], writes:[], explain:'The profile is keyed by the same user ID as the account. If no matching row exists, the form starts as a new profile; it never creates a second account.', status:'Implemented.' },
+        { title:'Save profile details', copy:'The app validates and saves the pitch, experience, skills, desired roles, links, and privacy setting.', tables:['profiles'], reads:['profiles'], writes:['profiles'], explain:'The profile table keeps the seeker’s information together. Skills and desired roles are saved as lists; the privacy setting controls visibility to coworkers. Save creates the row the first time and updates it later.', status:'Implemented. Resume upload is not wired up; resume storage is reserved in resume_files.' }
+      ]},
+      { title:'Verify work email', label:'BECOME A REFERRER', steps:[
+        { title:'Check the work email and send a code', copy:'The app rejects free-mail addresses and already-claimed addresses, applies resend limits, then emails a six-digit code.', tables:['users','referrer_profiles','email_otps'], reads:['users','referrer_profiles','email_otps'], writes:['email_otps'], explain:'First the app checks that this looks like a work address and is not already claimed by someone else. It stores a protected hash of the six-digit code, then emails the actual code. The limit is one email per minute and three in 15 minutes.', status:'Implemented. One request per minute and up to three requests per 15 minutes.' },
+        { title:'Confirm the code', copy:'The app checks the latest code, its expiry, and the number of failed attempts. A wrong attempt updates the attempt count; success removes the OTP.', tables:['email_otps','users'], reads:['email_otps','users'], writes:['email_otps'], explain:'Entering the correct code proves access to the work inbox. The code lasts ten minutes; each wrong guess uses an attempt, and the fifth wrong guess removes it so it cannot be tried again.', status:'Implemented.' },
+        { title:'Link the person to a company', copy:'On success, the company is found or created from the work-email domain and the person’s referrer profile is saved.', tables:['companies','referrer_profiles','email_otps'], reads:['companies','referrer_profiles'], writes:['companies','referrer_profiles','email_otps'], explain:'The company is identified by the part after @ in the verified email. If that domain is new, the app creates a company row; then it links the existing user to that company as a verified referrer and removes the used code.', status:'Implemented.' }
+      ]},
+      { title:'Companies and wishlist', label:'BROWSE OPPORTUNITIES', steps:[
+        { title:'Load companies and open-to-meet employees', copy:'The app loads the company directory, open roles, verified employees who are open to meet, and the signed-in seeker’s wishlist.', tables:['companies','open_roles','referrer_profiles','users','wishlists','conversations','credit_ledger'], reads:['companies','open_roles','referrer_profiles','users','wishlists','conversations','credit_ledger'], writes:[], explain:'The app combines company, role, and employee rows to build each company card. It also reads this seeker’s saved companies and meeting requests to show wishlist progress and how many requests remain.', status:'Implemented. The request budget is three plus ledger credits minus seeker-started conversations; credits are not issued yet.' },
+        { title:'Add or remove a wishlist item', copy:'Adding checks that the company exists, is not the seeker’s own verified company, and the five-company limit is not reached.', tables:['companies','referrer_profiles','wishlists'], reads:['companies','referrer_profiles','wishlists'], writes:['wishlists'], explain:'Saving a company inserts a link between this seeker and that company. The link is unique, so the same company cannot be saved twice; removing it deletes the link but not the company itself.', status:'Implemented.' }
+      ]},
+      { title:'Meet requests', label:'REQUEST AND RESPONSE', steps:[
+        { title:'Check request rules', copy:'Before creating a request, the server checks the target, own-company rule, blocks, available referrer slots, request budget, and duplicate conversation.', tables:['users','referrer_profiles','reports_blocks','conversations','credit_ledger'], reads:['users','referrer_profiles','reports_blocks','conversations','credit_ledger'], writes:[], explain:'These checks protect both people: the target must be verified and open to meet, neither side can have blocked the other, the referrer must have room, and the seeker needs a request left. The app also prevents requests to yourself, your own company, or someone you already have a conversation with.', status:'Implemented.' },
+        { title:'Create a pending request', copy:'A valid request creates one pending conversation with the seeker, referrer, and optional note.', tables:['conversations'], reads:[], writes:['conversations'], explain:'One row in conversations stores who asked, who was asked, the note, and the pending status. This row is the request itself; no separate meeting-request row is needed.', status:'Implemented for seeker-initiated requests. Referrer invites are not wired up.' },
+        { title:'Accept or decline', copy:'The recipient can accept or decline a pending request. Accepting rechecks the referrer’s available slots.', tables:['conversations','referrer_profiles'], reads:['conversations','referrer_profiles'], writes:['conversations'], explain:'Only the person who received the request can respond, and only while it is still pending. Accepting changes the conversation status and opens chat; declining changes the status without sending the seeker a decline notice.', status:'Implemented.' }
+      ]},
+      { title:'Chat', label:'ACCEPTED CONVERSATIONS', steps:[
+        { title:'Check access and load messages', copy:'The app verifies the person belongs to the accepted conversation and that the pair is not blocked, then loads its messages.', tables:['conversations','reports_blocks','messages'], reads:['conversations','reports_blocks','messages'], writes:[], explain:'The server checks the signed-in person against the two participants recorded on the conversation. Chat only works after acceptance, and either person blocking the other stops access; a guessed conversation ID is not enough.', status:'Implemented. Messages are polled by the frontend.' },
+        { title:'Reserve a message slot', copy:'For each send, one guarded update increments the conversation counter only if the chat is accepted and fewer than 20 messages have been used.', tables:['conversations'], reads:[], writes:['conversations'], explain:'Before saving a message, the database tries to increase the shared counter only if it is still below 20. The database performs this check-and-increase together, even when both people send at the same time.', status:'Implemented.' },
+        { title:'Save the message', copy:'If a slot was reserved, the message is inserted in the same transaction. If not, the send is rejected.', tables:['conversations','messages'], reads:[], writes:['conversations','messages'], explain:'The count increase and message insert succeed or fail together. That prevents a missing message from using up a slot, and prevents a saved message from bypassing the 20-message total.', status:'Implemented.' }
+      ]},
+      { title:'Referrals', label:'REFERRAL TRACKING', steps:[
+        { title:'Show referrals received', copy:'The current screen lists referrals for the signed-in candidate with company, referrer, optional role, and status.', tables:['referrals','users','companies','open_roles'], reads:['referrals','users','companies','open_roles'], writes:[], explain:'Each referral points to the candidate, referrer, and company; it may also point to a specific role. The screen follows those links to show names rather than only database IDs.', status:'Implemented as a read-only screen; displayed rows may come from demo seed data.' },
+        { title:'Refer a candidate or update status', copy:'The referrals table supports referral records and statuses, but the live Refer action and status-update screen are not implemented.', tables:['referrals','reviews'], reads:[], writes:['referrals','reviews'], explain:'When built, Refer will save a referral and Save/Pass will save a private review note. The app will track referral progress here; it will not submit the person into a company’s hiring system.', status:'Not implemented. These tables are currently schema support, not active user actions.' }
+      ]},
+      { title:'QR badge and scans', label:'EVENT DAY', steps:[
+        { title:'Show the badge', copy:'The badge screen loads the signed-in person’s name and QR token. The QR encodes a URL with the random token, not a user ID.', tables:['badges','users'], reads:['badges','users'], writes:[], explain:'The badge is created with the account and shown from the Badge screen. Its random token lets the app identify a badge without exposing the person’s internal database ID.', status:'Implemented.' },
+        { title:'Scan a badge', copy:'A future scan flow will look up a badge token, apply profile privacy rules, and record the scan.', tables:['scans','badges','users','profiles','referrer_profiles'], reads:['badges','users','profiles','referrer_profiles'], writes:['scans'], explain:'When scanning is built, the token will find the badge owner; the app will check who is scanning and whether the owner’s profile should be visible, then save a scan-history row. Today, this scan feature is not available.', status:'Planned; no scan rows are currently created by the app.' }
+      ]},
+      { title:'Delete an account', label:'PERMANENT CLEANUP', steps:[
+        { title:'Identify the account', copy:'The delete endpoint uses the signed-in user’s session to determine which account should be removed.', tables:['users'], reads:['users'], writes:[], explain:'The account being deleted comes from the active sign-in session. The caller cannot change an ID in the request to delete somebody else.', status:'Implemented.' },
+        { title:'Delete rows that need explicit cleanup', copy:'In one transaction, the app deletes conversations, reviews, and referrals that reference the person before deleting the account.', tables:['conversations','messages','reviews','referrals'], reads:[], writes:['conversations','messages','reviews','referrals'], explain:'Some records point to a user but are not set to auto-delete with that user. The app removes those conversations, reviews, and referrals first; messages attached to deleted conversations are removed too.', status:'Implemented.' },
+        { title:'Delete the account and dependent data', copy:'Deleting the users row cascades to owned profile, badge, OTP, resume, wishlist, scan, block, credit, and notification rows.', tables:['users','profiles','referrer_profiles','badges','email_otps','resume_files','wishlists','scans','credit_ledger','reports_blocks','notifications'], reads:[], writes:['users','profiles','referrer_profiles','badges','email_otps','resume_files','wishlists','scans','credit_ledger','reports_blocks','notifications'], explain:'After the user row is removed, MySQL automatically removes the attached records configured to cascade. The company is shared by its employees, so it stays even if one employee deletes their account.', status:'Implemented.' }
+      ]}
+    ];
+
+    const glossary = [
+      ['Table','A named spreadsheet of rows. Example: users.'], ['Row','One record in a table. One person is one users row.'],
+      ['Column','One fact stored on a row. Example: users.email.'], ['Primary key (PK)','The row\'s unique ID. Other rows can point to it.'],
+      ['Foreign key (FK)','A column that points at another table\'s primary key. It makes the relationship explicit.'],
+      ['One-to-many','One company can have many roles. Each role belongs to one company.'], ['Many-to-many','Many seekers can wishlist many companies; wishlists stores each pair.'],
+      ['UNIQUE','A rule that rejects duplicates, like a repeated sign-in email.'], ['CASCADE','Deleting a parent row automatically deletes selected child rows.'],
+      ['Transaction','A group of database changes that all commit together or all roll back.'], ['JSON column','A column storing a structured list, used for skills and desired roles.'],
+      ['OTP','One-time password/code. Here it is six digits, expires after ten minutes, and is stored as a hash.'],
+      ['Upsert','Insert if absent, otherwise update the existing row.'], ['Seed data','Sample rows added for development/demo so the UI is not empty.']
+    ];
+
+    const journeysForMap = document.getElementById('journey-list');
+    const canvas = document.getElementById('map-canvas');
+    const nodeLayer = document.getElementById('nodes');
+    const lines = document.getElementById('map-lines');
+    const inspector = document.getElementById('inspector');
+    const storageKey = 'referral-db-map-v1';
+    let savedPositions = {};
+    try { savedPositions = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { savedPositions = {}; }
+    let selectedTable = 'users';
+    let selectedJourney = 0;
+    let selectedStep = 0;
+    let showRelations = true;
+    let activeSearch = '';
+    let toastTimeout;
+
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const tableById = id => tables.find(table => table.id === id);
+    const statusLabel = status => status === 'active' ? 'ACTIVE IN APP' : status === 'partial' ? 'PARTLY USED' : 'SCHEMA ONLY';
+
+    function renderJourneyList() {
+      journeysForMap.innerHTML = journeys.map((journey, index) => `<button class="journey-button" type="button" data-journey="${index}" aria-current="${index === selectedJourney ? 'step' : 'false'}"><span class="journey-number">${String(index + 1).padStart(2,'0')}</span><span class="journey-name">${escapeHtml(journey.title)}</span></button>`).join('');
+      journeysForMap.querySelectorAll('[data-journey]').forEach(button => button.addEventListener('click', () => {
+        selectedJourney = Number(button.dataset.journey);
+        selectedStep = 0;
+        renderJourneyList();
+        renderJourney();
+      }));
+    }
+
+    function currentJourneyStep() { return journeys[selectedJourney].steps[selectedStep]; }
+
+    function renderJourney() {
+      const journey = journeys[selectedJourney];
+      const step = currentJourneyStep();
+      document.getElementById('journey-eyebrow').textContent = `JOURNEY ${String(selectedJourney + 1).padStart(2,'0')} / ${journey.label}`;
+      document.getElementById('journey-title').textContent = step.title;
+      document.getElementById('journey-copy').textContent = step.copy;
+      document.getElementById('journey-explainer').textContent = step.explain;
+      const renderFlowTables = (elementId, tableIds) => {
+        const container = document.getElementById(elementId);
+        container.innerHTML = tableIds.length
+          ? tableIds.map(id => `<button class="flow-table" type="button" data-flow-table="${escapeHtml(id)}">${escapeHtml(id)}</button>`).join('')
+          : '<span class="flow-data-empty">None in this step</span>';
+        container.querySelectorAll('[data-flow-table]').forEach(button => button.addEventListener('click', () => selectTable(button.dataset.flowTable)));
+      };
+      renderFlowTables('flow-reads', step.reads || []);
+      renderFlowTables('flow-writes', step.writes || []);
+      document.getElementById('flow-status').textContent = step.status || '';
+      document.getElementById('step-count').textContent = `STEP ${selectedStep + 1} OF ${journey.steps.length}`;
+      document.getElementById('previous-step').disabled = selectedStep === 0;
+      document.getElementById('next-step').textContent = selectedStep === journey.steps.length - 1 ? 'Journey complete' : 'Next step';
+      document.getElementById('next-step').disabled = selectedStep === journey.steps.length - 1;
+      document.getElementById('step-track').innerHTML = journey.steps.map((item, index) => `${index ? '<span class="step-arrow" aria-hidden="true">&gt;</span>' : ''}<span class="step-pill ${index === selectedStep ? 'current' : index < selectedStep ? 'done' : ''}">${escapeHtml(item.title)}</span>`).join('');
+      applyHighlights();
+    }
+
+    function renderMap() {
+      const activeIds = new Set(currentJourneyStep().tables);
+      nodeLayer.innerHTML = tables.map(table => {
+        const position = savedPositions[table.id] || {x:table.x, y:table.y};
+        const allFields = table.columns.filter(column => column[2] === 'PK' || column[2] === 'PK, FK -> users.id' || column[2] === 'PK, FK -> companies.id' || column[2] === 'PK, FK -> conversations.id' || column[2] === 'UNIQUE');
+        const snippets = [table.primary, ...table.columns.filter(column => String(column[2] || '').startsWith('FK')).slice(0,1).map(column => column[0])].filter(Boolean).slice(0,3);
+        return `<article class="table-node ${table.id === selectedTable ? 'selected' : ''} ${activeIds.has(table.id) ? 'journey-active' : activeIds.size ? 'dimmed' : ''}" data-table="${table.id}" style="left:${position.x}px;top:${position.y}px;--node-color:${table.color}">
+          <div class="node-top"><button class="node-title" type="button" data-select="${table.id}">${escapeHtml(table.id)}</button><button class="drag-handle" type="button" aria-label="Drag ${escapeHtml(table.id)} table" title="Drag table">::</button></div>
+          <div class="node-fields">${snippets.map((field,index) => `<span class="field-pill ${index===0?'pk':allFields.some(column=>column[0]===field)?'fk':''}">${escapeHtml(field)}</span>`).join('')}</div>
+          <div class="node-foot"><span>${escapeHtml(table.group)}</span><span class="status-dot ${table.status}">${table.status==='active'?'Active':table.status==='partial'?'Partial':'Planned'}</span></div>
+        </article>`;
+      }).join('');
+      nodeLayer.querySelectorAll('[data-select]').forEach(button => button.addEventListener('click', () => selectTable(button.dataset.select)));
+      nodeLayer.querySelectorAll('.drag-handle').forEach(handle => attachDrag(handle));
+      renderRelations();
+      applyHighlights();
+      applySearch();
+    }
+
+    function renderRelations() {
+      const box = canvas.getBoundingClientRect();
+      lines.setAttribute('viewBox', `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
+      lines.innerHTML = `<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--edge)"></path></marker><marker id="arrow-active" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--blue)"></path></marker></defs>`;
+      for (const [from,to,label] of relations) {
+        const a = nodeLayer.querySelector(`[data-table="${from}"]`);
+        const b = nodeLayer.querySelector(`[data-table="${to}"]`);
+        if (!a || !b) continue;
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+        const x1 = ra.left - box.left + ra.width / 2;
+        const y1 = ra.top - box.top + ra.height / 2;
+        const x2 = rb.left - box.left + rb.width / 2;
+        const y2 = rb.top - box.top + rb.height / 2;
+        const dx = (x2 - x1) * .48;
+        const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+        const focused = tableById(from).id === selectedTable || tableById(to).id === selectedTable || currentJourneyStep().tables.includes(from) && currentJourneyStep().tables.includes(to);
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d',d); path.setAttribute('class',`edge ${focused ? 'active' : ''} ${showRelations ? '' : 'dimmed'}`); path.dataset.from=from; path.dataset.to=to; lines.appendChild(path);
+        const labelNode = document.createElementNS('http://www.w3.org/2000/svg','text');
+        labelNode.setAttribute('x',(x1+x2)/2); labelNode.setAttribute('y',(y1+y2)/2-4); labelNode.setAttribute('class',`edge-label ${focused?'active':''} ${showRelations?'':'dimmed'}`); labelNode.textContent=label; lines.appendChild(labelNode);
+      }
+    }
+
+    function applyHighlights() {
+      const activeIds = new Set(currentJourneyStep().tables);
+      nodeLayer.querySelectorAll('.table-node').forEach(node => {
+        node.classList.toggle('journey-active',activeIds.has(node.dataset.table));
+        node.classList.toggle('dimmed',activeIds.size > 0 && !activeIds.has(node.dataset.table));
+      });
+      lines.querySelectorAll('.edge').forEach(edge => {
+        const active = activeIds.has(edge.dataset.from) && activeIds.has(edge.dataset.to);
+        edge.classList.toggle('active',active || edge.dataset.from === selectedTable || edge.dataset.to === selectedTable);
+        edge.classList.toggle('dimmed',!showRelations || (activeIds.size && !active));
+      });
+      renderJourneyTrackOnly();
+    }
+
+    function renderJourneyTrackOnly() {
+      const journey = journeys[selectedJourney];
+      document.getElementById('step-track').innerHTML = journey.steps.map((item,index) => `${index ? '<span class="step-arrow" aria-hidden="true">&gt;</span>' : ''}<span class="step-pill ${index===selectedStep?'current':index<selectedStep?'done':''}">${escapeHtml(item.title)}</span>`).join('');
+    }
+
+    function selectTable(id) {
+      selectedTable = id;
+      nodeLayer.querySelectorAll('.table-node').forEach(node => node.classList.toggle('selected',node.dataset.table===id));
+      renderInspector();
+      applyHighlights();
+    }
+
+    function renderInspector() {
+      const table = tableById(selectedTable);
+      if (!table) return;
+      const connected = relations.filter(relation => relation[0]===table.id || relation[1]===table.id);
+      const statusClass = table.status === 'active' ? '' : table.status;
+      inspector.innerHTML = `<div class="inspector-top"><span class="eyebrow">TABLE INSPECTOR</span><span class="status-tag ${statusClass}">${statusLabel(table.status)}</span></div>
+        <h2>${escapeHtml(table.id)}</h2><div class="inspector-summary">${escapeHtml(table.summary)}</div>
+        <div class="inspect-section"><h3>Columns (${table.columns.length})</h3>${table.columns.map(column=>`<div class="column-row"><span>${escapeHtml(column[0])}${column[2]?`<span class="key-badge">${escapeHtml(column[2])}</span>`:''}</span><small>${escapeHtml(column[1])}</small></div>`).join('')}</div>
+        <div class="inspect-section"><h3>Rules</h3>${table.constraints.map(rule=>`<div class="note-box" style="margin:5px 0">${escapeHtml(rule)}</div>`).join('')}</div>
+        <div class="inspect-section"><h3>Connections (${connected.length})</h3>${connected.length?connected.map(([from,to,label])=>`<button class="relation-button" type="button" data-rel="${from===table.id?to:from}">${from===table.id?'This table':'Related table'}: ${escapeHtml(from===table.id?to:from)} <span style="color:#687174">/ ${escapeHtml(label)}</span></button>`).join(''):'<div class="inspector-summary">No direct foreign-key lines are drawn for this table.</div>'}</div>
+        <div class="inspect-section"><h3>What the app does</h3><div class="inspector-summary">${escapeHtml(table.code)}</div></div>`;
+      inspector.querySelectorAll('[data-rel]').forEach(button=>button.addEventListener('click',()=>selectTable(button.dataset.rel)));
+    }
+
+    function attachDrag(handle) {
+      handle.addEventListener('pointerdown',event=>{
+        event.preventDefault();
+        const node=handle.closest('.table-node');
+        const rect=node.getBoundingClientRect();
+        const canvasRect=canvas.getBoundingClientRect();
+        const start={x:event.clientX,y:event.clientY,left:rect.left-canvasRect.left,top:rect.top-canvasRect.top,moved:false,node,id:node.dataset.table};
+        handle.setPointerCapture(event.pointerId);
+        const move=moveEvent=>{
+          start.moved ||= Math.abs(moveEvent.clientX-start.x)+Math.abs(moveEvent.clientY-start.y)>3;
+          if(!start.moved)return;
+          const left=Math.max(0,Math.min(canvas.clientWidth-node.offsetWidth,start.left+moveEvent.clientX-start.x));
+          const top=Math.max(0,Math.min(canvas.clientHeight-node.offsetHeight,start.top+moveEvent.clientY-start.y));
+          node.style.left=`${left}px`;node.style.top=`${top}px`;
+          savedPositions[start.id]={x:left,y:top};
+          renderRelations();
+        };
+        const up=()=>{
+          handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);
+          if(start.moved){localStorage.setItem(storageKey,JSON.stringify(savedPositions));showToast('Table moved. Your layout is saved in this browser.');}
+        };
+        handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',up,{once:true});
+      });
+    }
+
+    function applySearch() {
+      const query=activeSearch.trim().toLowerCase();
+      nodeLayer.querySelectorAll('.table-node').forEach(node=>{
+        const table=tableById(node.dataset.table);
+        const searchable=[table.id,table.group,table.summary,...table.columns.map(column=>column[0])].join(' ').toLowerCase();
+        node.classList.toggle('filtered',query && !searchable.includes(query));
+      });
+      lines.querySelectorAll('.edge,.edge-label').forEach(item=>{
+        const from=item.dataset.from,to=item.dataset.to;
+        const filtered=from && (nodeLayer.querySelector(`[data-table="${from}"]`)?.classList.contains('filtered') || nodeLayer.querySelector(`[data-table="${to}"]`)?.classList.contains('filtered'));
+        item.style.display=filtered?'none':'';
+      });
+    }
+
+    function renderDictionary(filter='') {
+      const term=filter.toLowerCase();
+      const visible=tables.filter(table=>[table.id,table.summary,table.group,table.status,...table.columns.map(column=>column[0])].join(' ').toLowerCase().includes(term));
+      document.getElementById('dictionary-grid').innerHTML=visible.map(table=>`<button class="dictionary-card" type="button" data-open="${table.id}"><h3>${escapeHtml(table.id)}</h3><p>${escapeHtml(table.summary)}</p><span class="status-tag ${table.status==='active'?'':table.status}">${statusLabel(table.status)}</span></button>`).join('') || '<div class="note-box">No table found. The database refuses to hallucinate a table.</div>';
+      document.getElementById('dictionary-grid').querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{selectTable(button.dataset.open);switchView('map');}));
+    }
+
+    function switchView(view) {
+      document.querySelectorAll('.view').forEach(section=>section.classList.toggle('active',section.id===`view-${view}`));
+      document.querySelectorAll('.view-tab').forEach(tab=>tab.setAttribute('aria-selected',String(tab.id===`tab-${view}`)));
+      if(view==='map')requestAnimationFrame(renderRelations);
+    }
+
+    function showToast(message) {
+      const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>toast.classList.remove('show'),2400);
+    }
+
+    function renderGlossary() {
+      document.getElementById('glossary-list').innerHTML = glossary.map(([term, definition]) =>
+        `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(definition)}</dd></div>`
+      ).join('');
+    }
+
+    document.querySelectorAll('.view-tab').forEach(tab=>tab.addEventListener('click',()=>switchView(tab.id.replace('tab-',''))));
+    document.getElementById('previous-step').addEventListener('click',()=>{if(selectedStep>0){selectedStep--;renderJourney();}});
+    document.getElementById('next-step').addEventListener('click',()=>{if(selectedStep<journeys[selectedJourney].steps.length-1){selectedStep++;renderJourney();}});
+    document.getElementById('table-search').addEventListener('input',event=>{activeSearch=event.target.value;applySearch();});
+    document.getElementById('dictionary-search').addEventListener('input',event=>renderDictionary(event.target.value));
+    document.getElementById('connections-toggle').addEventListener('click',event=>{showRelations=!showRelations;event.currentTarget.classList.toggle('active',showRelations);event.currentTarget.setAttribute('aria-pressed',String(showRelations));renderRelations();applyHighlights();});
+    document.getElementById('reset-map').addEventListener('click',()=>{savedPositions={};localStorage.removeItem(storageKey);renderMap();showToast('Map reset. The tables are back where the architect left them.');});
+    window.addEventListener('resize',()=>requestAnimationFrame(renderRelations));
+    document.addEventListener('keydown',event=>{
+      if(event.target.matches('input'))return;
+      if(event.key==='ArrowRight'&&selectedStep<journeys[selectedJourney].steps.length-1){selectedStep++;renderJourney();}
+      if(event.key==='ArrowLeft'&&selectedStep>0){selectedStep--;renderJourney();}
+    });
+
+    document.getElementById('table-count').textContent=tables.length;
+    document.getElementById('journey-count').textContent=journeys.length;
+    renderJourneyList();renderMap();renderJourney();renderInspector();renderDictionary();renderGlossary();
+  </script>
+</body>
+</html>
