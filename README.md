@@ -1,0 +1,135 @@
+# Referral Portal
+
+A local-development proof of concept for discovering companies, requesting referrals, and connecting with referrers.
+
+This guide covers a fresh Windows 10/11 setup using PowerShell, Docker Desktop, and the local MySQL database. For additional setup notes, see [docs/SETUP-ON-NEW-SYSTEM.md](docs/SETUP-ON-NEW-SYSTEM.md).
+
+## Prerequisites
+
+- Windows 10 (version 2004/build 19041 or later) or Windows 11, 64-bit.
+- Hardware virtualization enabled in UEFI/BIOS. WSL 2 and Docker Desktop need it.
+- Git for Windows.
+- WSL 2 and Docker Desktop with the WSL 2 backend.
+- Java 21 JDK.
+- Node.js 24 LTS (npm is included).
+
+You do not need to install Maven separately; the backend includes the Maven wrapper.
+
+## Install on Windows
+
+Open **PowerShell as Administrator** and install WSL 2:
+
+```powershell
+wsl --install
+```
+
+This enables the required Windows features and installs the default Linux distribution. Restart Windows when prompted, then open PowerShell and check WSL:
+
+```powershell
+wsl --status
+```
+
+If WSL is already installed, update it with `wsl --update`. If Windows asks for administrator access to enable Virtual Machine Platform, approve the prompt or ask your administrator to enable it.
+
+Install Git, the Java 21 JDK, Node.js LTS, and Docker Desktop. Run these from PowerShell; the Docker installer may request administrator approval:
+
+```powershell
+winget install --id Git.Git --exact
+winget install --id EclipseAdoptium.Temurin.21.JDK --exact
+winget install --id OpenJS.NodeJS.LTS --exact
+winget install --id Docker.DockerDesktop --exact
+```
+
+If Docker Desktop offers an installation scope, choose **All users** when needed to enable Windows virtualization features. Restart if the installer requests it, launch Docker Desktop, and wait for the engine to report that it is running. Docker Desktop sign-in is not normally required for local development.
+
+Close and reopen PowerShell or VS Code after installation so the updated `PATH` is loaded. Verify the tools:
+
+```powershell
+git --version
+java -version
+node --version
+npm --version
+docker compose version
+```
+
+Confirm Java reports version `21` and Node reports major version `24`. The Winget LTS package can move to a newer major version over time; if it does not install Node 24, select the Node 24 Windows installer from the [official Node.js downloads page](https://nodejs.org/en/download) and verify with `node --version`.
+
+## Clone and configure
+
+In PowerShell, clone the repository and create the local environment file:
+
+```powershell
+git clone https://github.com/Pratik-M1110/referral-portal-poc.git
+Set-Location referral-portal-poc
+Copy-Item .env.example .env
+```
+
+The copied `.env.example` uses the local Docker MySQL defaults. Keep those database settings for local development. Do not point `SEED_DEMO=true` at a production or other shared database: it inserts sample companies and users. The root `.env` is ignored by Git; never commit it or share its secrets.
+
+Google/GitHub OAuth and Brevo email credentials are not included. The app can start without them, but those sign-in and email flows will not work until configured. For local OAuth, register these callback URLs with the providers:
+
+```text
+http://localhost:8080/login/oauth2/code/google
+http://localhost:8080/login/oauth2/code/github
+```
+
+## Start the application
+
+Keep Docker Desktop running. Run each service in its own PowerShell terminal.
+
+1. Start MySQL from the repository root:
+
+   ```powershell
+   docker compose up -d mysql
+   docker compose ps
+   ```
+
+   Wait until the `mysql` service reports healthy. Docker maps MySQL to host port `3307`; its data is kept in a Docker volume.
+
+2. Start the backend from the repository root:
+
+   ```powershell
+   .\backend\mvnw.cmd -f backend\pom.xml spring-boot:run
+   ```
+
+   The backend listens on `http://localhost:8080`. On first run, Maven downloads dependencies and Flyway creates the local schema.
+
+3. Start the frontend from the repository root in another terminal:
+
+   ```powershell
+   npm --prefix frontend ci
+   npm --prefix frontend run dev
+   ```
+
+   Open the Vite URL printed in the terminal, normally `http://localhost:5173`.
+
+Check that the backend is ready at `http://localhost:8080/actuator/health`; it should return `{"status":"UP"}`.
+
+## Run checks
+
+From the repository root:
+
+```powershell
+.\backend\mvnw.cmd -f backend\pom.xml test
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+
+## Stop services
+
+Stop the frontend and backend with `Ctrl+C`, then stop MySQL:
+
+```powershell
+docker compose down
+```
+
+The database volume is preserved for the next run. Do not use `docker compose down -v` unless you intentionally want to delete local database data. Git does not transfer the database volume or uploaded resume files.
+
+## Troubleshooting
+
+- **Docker says Virtual Machine Platform is missing:** Run `wsl --install` in an elevated PowerShell, restart Windows, then rerun the Docker Desktop installer. If you lack administrator rights, ask your administrator for help.
+- **Docker commands cannot reach the engine:** Start Docker Desktop and wait for it to finish starting. Check `docker info`.
+- **Backend cannot connect to MySQL:** Check `docker compose ps` and confirm `.env` uses the local database settings from `.env.example`. The host port is `3307`, not `3306`.
+- **`java`, `node`, or `npm` is not recognized:** Close and reopen the terminal after installing the tool. Recheck the version commands above.
+- **A port is already in use:** Defaults are MySQL `3307`, backend `8080`, and Vite `5173`. Stop the conflicting process or update the related configuration consistently.
+- **OAuth or email does not work:** Configure valid provider credentials in the ignored root `.env`; never put credentials in `.env.example` or commit them.

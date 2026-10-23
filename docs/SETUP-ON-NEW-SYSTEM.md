@@ -118,7 +118,7 @@ Keep the files needed to recreate the application under version control: source 
 
 Do not push `.env`, OAuth/SMTP credentials, database dumps, uploaded resumes, `node_modules`, frontend `dist`, or backend `target` build output. Those are local, sensitive, or reproducible.
 
-The repository's root `.gitignore` also excludes `README.md`, `CLAUDE.md`, `docs/MVP.md`, and the screen-ideas PDF. They are not included in a normal clone unless intentionally added to Git. If future contributors or Copilot need the product brief or wireframes, review those files for private content and decide whether to unignore and commit them separately.
+The root `README.md` is the repository's public setup entry point. The root `.gitignore` continues to exclude `CLAUDE.md`, `docs/MVP.md`, and the screen-ideas PDF. If future contributors or Copilot need the product brief or wireframes, review those files for private content before deciding whether to commit them.
 
 ## Ask Copilot for help on the new system
 
