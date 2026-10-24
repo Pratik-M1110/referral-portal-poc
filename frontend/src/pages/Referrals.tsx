@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Inbox, Send } from 'lucide-react'
 import { useState } from 'react'
 import { api, type ReferralRequestInboxItem, type SeekerReferralRequest } from '../api'
 import { Avatar, Button, Card, Chip, EmptyState, ErrorNote, PageTitle, Spinner } from '../ui'
@@ -157,6 +158,7 @@ function ReferrerInboxCard({ item, act, pending }: {
 
 export default function ReferralsPage() {
   const qc = useQueryClient()
+  const [activeTab, setActiveTab] = useState<'sent' | 'inbox'>('sent')
   const seekerRequests = useQuery({
     queryKey: ['seeker-referral-requests'],
     queryFn: () => api<SeekerReferralRequest[]>('/api/referral-requests'),
@@ -193,18 +195,45 @@ export default function ReferralsPage() {
   if (seekerRequests.isError || inbox.isError || !seekerRequests.data || !inbox.data) {
     return <ErrorNote message="Could not load referral requests." />
   }
+  const pendingInboxCount = inbox.data.filter((item) => item.status === 'pending').length
   return (
     <div>
       <PageTitle title="Referrals" subtitle="Track requests you sent and requests you can help with." />
       <ErrorNote message={action.error?.message ?? null} />
-      <section className="mb-6 space-y-3">
-        <h2 className="text-lg font-bold">Requests I sent</h2>
+      <div role="tablist" aria-label="Referral request views" className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-line bg-page p-1">
+        <button
+          id="sent-requests-tab"
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'sent'}
+          aria-controls="sent-requests-panel"
+          onClick={() => setActiveTab('sent')}
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition ${activeTab === 'sent' ? 'bg-white text-gblue shadow-sm' : 'text-muted hover:bg-white/60'}`}
+        >
+          <Send size={16} />
+          <span>Requests I sent</span>
+          <span className="text-xs tabular-nums">{seekerRequests.data.length}</span>
+        </button>
+        <button
+          id="received-requests-tab"
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'inbox'}
+          aria-controls="received-requests-panel"
+          onClick={() => setActiveTab('inbox')}
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition ${activeTab === 'inbox' ? 'bg-white text-ggreen shadow-sm' : 'text-muted hover:bg-white/60'}`}
+        >
+          <Inbox size={16} />
+          <span>Requests for me</span>
+          <span className="text-xs tabular-nums">{pendingInboxCount}</span>
+        </button>
+      </div>
+      <section id="sent-requests-panel" role="tabpanel" aria-labelledby="sent-requests-tab" hidden={activeTab !== 'sent'} className="space-y-3">
         {seekerRequests.data.length === 0 ? (
           <EmptyState title="No referral requests yet" text="Choose a company and request referral help to get started." />
         ) : seekerRequests.data.map((request) => <SeekerRequestCard key={request.id} request={request} act={action.mutate} pending={action.isPending} />)}
       </section>
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold">Requests for me</h2>
+      <section id="received-requests-panel" role="tabpanel" aria-labelledby="received-requests-tab" hidden={activeTab !== 'inbox'} className="space-y-3">
         {inbox.data.length === 0 ? (
           <EmptyState title="No requests to review" text="When someone asks for referral help at your company, it will appear here." />
         ) : inbox.data.map((item) => <ReferrerInboxCard key={item.responseId} item={item} act={action.mutate} pending={action.isPending} />)}
