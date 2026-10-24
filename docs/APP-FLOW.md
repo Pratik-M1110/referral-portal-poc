@@ -2,11 +2,15 @@
 
 This document explains, flow by flow, what is actually built today: which API is called,
 which service/repository handles it, and which database tables/columns are read or written.
-It reflects the code as of late October 2026 (post Spring Data JPA migration), not the full
+It reflects the code as of 24 October 2026 (post Spring Data JPA migration), not the full
 product brief — gaps are called out explicitly at the end of each section.
 
 Stack: Spring Boot (Java) + MySQL (Flyway migrations through `V3__company_referral_requests.sql`) on the backend,
 React + Vite on the frontend. Auth is session-based (Spring Security OAuth2 Client), not JWT.
+
+The shared Aiven MySQL instance is for development/demo use. Developers may instead use the
+isolated Docker Compose MySQL database. Production will use a different database server;
+connection details belong in the ignored root `.env`, never in this document.
 
 Backend code layout: `controller/` → `service/` → `repository/` → `repository/jpa/` (the active
 data-access path, built on **Spring Data JPA**), plus a consolidated `dto/` package for all
@@ -113,7 +117,7 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
    - `pitch`, `experienceLevel`
    - `skills`, `rolesWanted` — stored as **JSON arrays** (MySQL has no array type; there's a
      generated/functional index on `skills` for lookup)
-   - `githubUrl`, `linkedinUrl`
+  - `githubUrl`, `linkedinUrl`, and optional `phoneNumber`
    - `hideFromMyCompany` (boolean)
    - `seeker` defaults to `true` at row creation
 4.  Resume upload is not implemented. The `resume_files` table and `ResumeFile` entity define
@@ -126,8 +130,8 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
 **Tables touched:** `profiles` (insert/update). `resume_files` is defined in the schema but is
 not written by the application.
 
-**Business rule enforced here:** none of the wishlist/request limits — those are enforced
-where they're used (Companies/Conversations), not on the profile itself.
+**Business rule enforced here:** wishlist and referral-request limits are enforced by their
+respective company and referral services, not by profile save.
 
 ---
 
@@ -227,7 +231,8 @@ Runs in one DB transaction (`confirmInTransaction`):
    ids) and saves it via `WishlistJpaRepository`.
 
 **Remove (`DELETE /api/wishlist/:companyId`):** unconditional
-`WishlistJpaRepository.deleteBySeekerIdAndCompanyId`.
+`WishlistJpaRepository.deleteBySeekerIdAndCompanyId`. Both add and remove operations run in
+`CompanyService` transactions so the derived delete query has an active transaction.
 
 **Tables touched:** `companies`, `open_roles` (read-only), `referrer_profiles` (read-only),
 `wishlists` (insert/delete).

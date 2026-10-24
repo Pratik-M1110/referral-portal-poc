@@ -24,27 +24,31 @@ flowchart LR
     app -->|"JPA repositories · transactions"| mysql
     app -. "OTP and referral emails" .-> smtp
 
-    subgraph dev["Local development"]
+    subgraph dev["Development"]
         vite["Vite dev server<br/>:5173"]
         boot["Spring Boot<br/>:8080"]
-        docker["Docker Compose MySQL<br/>host :3307 → container :3306"]
+        aiven[("Aiven MySQL<br/>shared development/demo")]
+        docker[("Docker Compose MySQL<br/>isolated local option<br/>host :3307 → container :3306")]
         vite -->|"Proxies /api, /logout, /actuator"| boot
-        boot --> docker
+        boot --> aiven
+        boot -. "alternative local database" .-> docker
     end
 
     subgraph deploy["Packaged runtime"]
         image["Multi-stage Docker build<br/>builds React assets and Spring Boot JAR"]
         one["Spring Boot serves API + static SPA<br/>port 8080"]
-        externaldb[("Configured MySQL service")]
+        externaldb[("Different production database server")]
         image --> one
         one --> externaldb
     end
 ```
 
-Locally, Vite serves the frontend separately and proxies API calls to Spring Boot. The
-production Dockerfile builds the frontend into Spring Boot's static resources so one
-application serves both the SPA and API. The database is configured separately in each
-environment. OAuth client credentials and SMTP settings are environment configuration,
+In development, Vite serves the frontend separately and proxies API calls to Spring Boot.
+The backend normally connects to the shared Aiven development database; Docker Compose
+MySQL is an isolated local alternative. The production Dockerfile builds the frontend into
+Spring Boot's static resources so one application serves both the SPA and API, with a
+database server different from the shared development instance. Database URLs and
+credentials, OAuth client credentials, and SMTP settings are environment configuration,
 not source-controlled values.
 
 ## Backend structure

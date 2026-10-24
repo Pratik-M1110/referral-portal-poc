@@ -2,47 +2,31 @@
 
 A local-development proof of concept for discovering companies, requesting referrals, and connecting with referrers.
 
-This guide covers a fresh Windows 10/11 setup using PowerShell, Docker Desktop, and the local MySQL database. For additional setup notes, see [docs/SETUP-ON-NEW-SYSTEM.md](docs/SETUP-ON-NEW-SYSTEM.md).
+This guide covers a fresh Windows 10/11 setup using PowerShell and the shared Aiven development database. Docker Compose MySQL is available as an isolated local alternative. For additional setup notes, see [docs/SETUP-ON-NEW-SYSTEM.md](docs/SETUP-ON-NEW-SYSTEM.md).
 
 For the current system diagrams and component overview, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Prerequisites
 
 - Windows 10 (version 2004/build 19041 or later) or Windows 11, 64-bit.
-- Hardware virtualization enabled in UEFI/BIOS. WSL 2 and Docker Desktop need it.
 - Git for Windows.
-- WSL 2 and Docker Desktop with the WSL 2 backend.
 - Java 21 JDK.
 - Node.js 24 LTS (npm is included).
+- Docker Desktop with WSL 2 is optional, and is only needed for the isolated local MySQL alternative.
 
 You do not need to install Maven separately; the backend includes the Maven wrapper.
 
 ## Install on Windows
 
-Open **PowerShell as Administrator** and install WSL 2:
-
-```powershell
-wsl --install
-```
-
-This enables the required Windows features and installs the default Linux distribution. Restart Windows when prompted, then open PowerShell and check WSL:
-
-```powershell
-wsl --status
-```
-
-If WSL is already installed, update it with `wsl --update`. If Windows asks for administrator access to enable Virtual Machine Platform, approve the prompt or ask your administrator to enable it.
-
-Install Git, the Java 21 JDK, Node.js LTS, and Docker Desktop. Run these from PowerShell; the Docker installer may request administrator approval:
+Install Git, the Java 21 JDK, and Node.js LTS from PowerShell:
 
 ```powershell
 winget install --id Git.Git --exact
 winget install --id EclipseAdoptium.Temurin.21.JDK --exact
 winget install --id OpenJS.NodeJS.LTS --exact
-winget install --id Docker.DockerDesktop --exact
 ```
 
-If Docker Desktop offers an installation scope, choose **All users** when needed to enable Windows virtualization features. Restart if the installer requests it, launch Docker Desktop, and wait for the engine to report that it is running. Docker Desktop sign-in is not normally required for local development.
+For isolated local MySQL, also install Docker Desktop and enable its WSL 2 backend. Docker may require virtualization support, a Windows restart, and administrator approval. Docker Desktop sign-in is not normally required for local development.
 
 Close and reopen PowerShell or VS Code after installation so the updated `PATH` is loaded. Verify the tools:
 
@@ -51,10 +35,15 @@ git --version
 java -version
 node --version
 npm --version
+```
+
+Confirm Java reports version `21` and Node reports major version `24`. If using local MySQL, also verify Docker Compose:
+
+```powershell
 docker compose version
 ```
 
-Confirm Java reports version `21` and Node reports major version `24`. The Winget LTS package can move to a newer major version over time; if it does not install Node 24, select the Node 24 Windows installer from the [official Node.js downloads page](https://nodejs.org/en/download) and verify with `node --version`.
+The Winget LTS package can move to a newer major version over time; if it does not install Node 24, select the Node 24 Windows installer from the [official Node.js downloads page](https://nodejs.org/en/download) and verify with `node --version`.
 
 ## Clone and configure
 
@@ -66,7 +55,9 @@ Set-Location referral-portal-poc
 Copy-Item .env.example .env
 ```
 
-The copied `.env.example` uses the local Docker MySQL defaults. Keep those database settings for local development. Do not point `SEED_DEMO=true` at a production or other shared database: it inserts sample companies and users. The root `.env` is ignored by Git; never commit it or share its secrets.
+The normal team development setup uses the shared Aiven development database. In the ignored root `.env`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` to the development values provided privately by the project maintainer. The checked-in `.env.example` contains local Docker defaults, not Aiven credentials. Never commit `.env` or put credentials in chat, issues, or documentation. Keep `SEED_DEMO=false` when using Aiven; demo seeding writes sample companies and users into the selected database. Production will use a different database server, not the shared development database.
+
+To use an isolated local database instead, keep the local database values from `.env.example` and start Docker Compose MySQL in the next section. Local Docker data is separate from Aiven and is persisted in a Docker volume.
 
 Google/GitHub OAuth and Brevo email credentials are not included. The app can start without them, but those sign-in and email flows will not work until configured. For local OAuth, register these callback URLs with the providers:
 
@@ -91,16 +82,16 @@ The former meeting/chat UI is hidden for now. Its backend endpoints, tables, and
 
 ## Start the application
 
-Keep Docker Desktop running. Run each service in its own PowerShell terminal.
+Run the backend and frontend in separate PowerShell terminals. Start Docker Desktop and the local MySQL service only if you selected the isolated local database instead of Aiven.
 
-1. Start MySQL from the repository root:
+1. Optional, for local MySQL only, start the database from the repository root:
 
    ```powershell
    docker compose up -d mysql
    docker compose ps
    ```
 
-   Wait until the `mysql` service reports healthy. Docker maps MySQL to host port `3307`; its data is kept in a Docker volume.
+   Wait until the `mysql` service reports healthy. Docker maps MySQL to host port `3307`; its data is kept in a Docker volume. Skip this step when using Aiven.
 
 2. Start the backend from the repository root:
 
@@ -133,7 +124,7 @@ npm --prefix frontend run build
 
 ## Stop services
 
-Stop the frontend and backend with `Ctrl+C`, then stop MySQL:
+Stop the frontend and backend with `Ctrl+C`. If you started local MySQL, stop it with:
 
 ```powershell
 docker compose down
@@ -143,9 +134,9 @@ The database volume is preserved for the next run. Do not use `docker compose do
 
 ## Troubleshooting
 
-- **Docker says Virtual Machine Platform is missing:** Run `wsl --install` in an elevated PowerShell, restart Windows, then rerun the Docker Desktop installer. If you lack administrator rights, ask your administrator for help.
+- **Docker says Virtual Machine Platform is missing:** This only affects the local MySQL option. Run `wsl --install` in an elevated PowerShell, restart Windows, then rerun the Docker Desktop installer. If you lack administrator rights, ask your administrator for help.
 - **Docker commands cannot reach the engine:** Start Docker Desktop and wait for it to finish starting. Check `docker info`.
-- **Backend cannot connect to MySQL:** Check `docker compose ps` and confirm `.env` uses the local database settings from `.env.example`. The host port is `3307`, not `3306`.
+- **Backend cannot connect to MySQL:** For Aiven, confirm the privately supplied development connection values in `.env` and check network access. For local MySQL, check `docker compose ps` and confirm `.env` uses the local database settings from `.env.example`; the host port is `3307`, not `3306`.
 - **`java`, `node`, or `npm` is not recognized:** Close and reopen the terminal after installing the tool. Recheck the version commands above.
 - **A port is already in use:** Defaults are MySQL `3307`, backend `8080`, and Vite `5173`. Stop the conflicting process or update the related configuration consistently.
 - **OAuth or email does not work:** Configure valid provider credentials in the ignored root `.env`; never put credentials in `.env.example` or commit them.

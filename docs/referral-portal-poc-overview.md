@@ -2,7 +2,7 @@
 
 **Project:** Referral Portal for DevFest Pune  
 **Event date:** 13 December 2026  
-**Document date:** 9 October 2026  
+**Document date:** 24 October 2026  
 **Purpose:** Explain the proof of concept (POC), what a user can try, how its data is stored, and what still belongs to the larger product.
 
 > **Status key**  
@@ -17,8 +17,8 @@ The live Render service deploys a Git branch. A feature branch is not live just 
 
 Referral Portal is a mobile-first app where job seekers request help from opted-in employees and track referral handoffs at their companies.
 
-- A **seeker** creates a profile, browses companies, saves companies, and requests a conversation.
-- A **referrer** verifies a work email, can choose to be open to meet, and may refer a candidate.
+- A **seeker** creates a profile, browses eligible companies, saves companies, and requests help with a company and role.
+- A **referrer** verifies a work email, opts in to referral requests, and may refer a candidate.
 - A **referral request** is sent to opted-in employees at one company; multiple employees may accept.
 - A **referral** is a tracked internal handoff. The portal does not submit a candidate to a company's hiring system.
 
@@ -29,7 +29,7 @@ The POC demonstrates part of this loop. It is not a job board, recruitment platf
 | Capability | POC status | Notes |
 |---|---|---|
 | Google and GitHub sign-in | IN POC | OAuth creates a user the first time; later sign-ins reuse the account by email. |
-| Seeker profile | IN POC | Experience, skills, roles wanted, pitch, and profile links. Resume upload is not included. |
+| Seeker profile | IN POC | Experience, skills, roles wanted, pitch, profile links, and optional phone. Resume upload is not included. |
 | Work-email verification | IN POC | Six-digit emailed code; unlocks referrer settings. It is not required to sign in or save a seeker profile. |
 | Company directory | IN POC | Companies with at least one verified employee opted in to referral requests; employee identities are not listed. |
 | Wishlist | IN POC | A seeker can save up to five companies. |
@@ -42,8 +42,8 @@ The POC demonstrates part of this loop. It is not a job board, recruitment platf
 | QR badge | IN POC | Contains a random token, not the user's database ID. |
 | Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and an optional job link. |
 | Account deletion | IN POC | Deletes a user's account and associated data after an explicit confirmation. It is permanent. |
-| Profile save without work email | BRANCH ONLY | The fix is on `bug/user-can-create-profile-without-work-email-fix`; confirm it has been merged and deployed before demoing. |
-| Database Explorer learning page | LOCAL ONLY | `frontend/public/database-explorer.html` is a local, untracked learning aid, not part of the current GitHub deployment. |
+| Profile save without work email | IN POC | Work-email verification is optional for seeker features and only required to become a referrer. |
+| Database Explorer learning page | IN POC | `frontend/public/database-explorer.html` is tracked and served as a static page. |
 
 ## 3. What's not in this POC
 
@@ -71,8 +71,9 @@ This is one Git repository with two applications:
 | Backend | Java 21, Spring Boot, Maven | OAuth, API endpoints, authorization, business rules, email, and database access. During development it runs on port 8080. |
 | Database | MySQL 8 | Stores accounts, profiles, companies, requests, chats, and other records. |
 | Schema changes | Flyway SQL migrations | Creates and updates tables when the backend starts. |
-| Local database | Docker Compose | Runs MySQL locally on port 3307, separate from an installed MySQL service. |
-| Hosted database | Aiven MySQL | Database used by the hosted POC, configured separately from the application container. |
+| Shared development database | Aiven MySQL | Shared development/demo data; connection details are supplied privately and kept in the ignored root `.env`. |
+| Isolated local database | Docker Compose | Optional MySQL on port 3307, separate from Aiven and persisted in a local Docker volume. |
+| Production database | Separate database server | Production will use a different database server from shared development Aiven. |
 | Hosted app | Render Docker Web Service | Builds and runs the combined React + Spring Boot image. |
 
 The backend uses an explicit **controller → service → repository** layout, with dedicated `dto` and `entity` packages alongside it:
@@ -83,14 +84,14 @@ The backend uses an explicit **controller → service → repository** layout, w
 4. **DTO** (`dto/`) — Java records used to carry data to and from API requests, all consolidated in one package.
 5. **Entity** (`entity/`) — JPA `@Entity` classes (one per table) that document the schema and its foreign-key relationships with annotations such as `@OneToOne`, `@ManyToOne`, `@OneToMany`, and `@JoinColumn`.
 
-The database schema is still managed with SQL migrations (Flyway), and repositories still use `JdbcClient` for all real reads/writes — the JPA entities are an additive, documentation-style model layer and are not wired into live queries. All beans across controllers, services, repositories, and the demo seeder use `@Autowired` field injection rather than constructor injection.
+Flyway SQL migrations manage the schema, and repository data access uses Spring Data JPA repositories backed by JPA entities. Hibernate does not generate schema changes (`ddl-auto: none`). The configured database is selected through environment variables; the application does not select Aiven or Docker based on `SEED_DEMO`.
 
 ## 5. The people and account model
 
 The `users` table is the identity anchor: one row per person. A person can be both a seeker and a referrer without creating a second account.
 
 - `users` stores the sign-in identity, name, email, provider, consent time, and creation time.
-- `profiles` stores the seeker's experience, skills, pitch, and links. Its `user_id` points to `users.id`.
+- `profiles` stores the seeker's experience, skills, pitch, links, and optional phone. Its `user_id` points to `users.id`.
 - `referrer_profiles` stores the employee side: verified work email, company, job title, referral-request opt-in, role preferences, and active-assignment limit. Verification alone does not opt someone in.
 - `badges` stores one random QR token per user.
 
@@ -119,7 +120,7 @@ flowchart LR
 
 ### B. Create a seeker profile
 
-The user can save their profile without a work email. The backend inserts or updates their row in `profiles`, keyed by `user_id`.
+The user can save their profile without a work email. The backend inserts or updates their row in `profiles`, keyed by `user_id`. Profile data includes an optional phone number; contact details are shared only according to the choices made for an accepted referral request.
 
 **Table:** `profiles`. Skills and roles wanted are JSON lists. Work-email verification is a separate optional step to unlock referrer settings.
 
@@ -165,7 +166,7 @@ The user confirms by typing `DELETE`. Deletion is permanent and runs in a transa
 
 ## 7. Database table guide
 
-The schema has **21 tables**, grouped by what they represent:
+The schema has **20 tables**, grouped by what they represent:
 
 | Table | Plain-language purpose | POC status |
 |---|---|---|
@@ -192,7 +193,7 @@ The schema has **21 tables**, grouped by what they represent:
 
 ## 8. Demo data and test status
 
-- Demo mode seeds one fictional "Demo Company" with five demo referrer users (Asha, Rohan, Meera, Sneha, Karan); those fictional employees are opted in so the company appears in the new directory.
+- When `SEED_DEMO=true`, demo mode seeds one fictional "Demo Company" with five demo referrer users (Asha, Rohan, Meera, Sneha, Karan); those fictional employees are opted in so the company appears in the directory. The setting adds data to the configured database; it does not choose the database. Leave it false for shared Aiven and production.
 - Demo data is not real hiring activity and must be turned off for a real event launch.
 - Backend tests cover startup, work-email verification, account deletion, referral requests, contact consent, expiry/refunds, reminders, and API route compatibility. The frontend has lint/build checks.
 - CI checks the backend and frontend builds when changes are pushed to GitHub.
@@ -205,7 +206,7 @@ The schema has **21 tables**, grouped by what they represent:
 - The browser theme preference is not synchronized between devices or accounts.
 - Account deletion is permanent; test it with a disposable account, not a primary account.
 - Email codes depend on working Brevo SMTP settings and deliverability.
-- Render free services can sleep when idle; Aiven free MySQL can power down. This is demo hosting, not a production reliability guarantee.
+- Render free services can sleep when idle; the shared Aiven development database may have its own availability limits. This setup is not a production reliability guarantee.
 - Before a public event launch, confirm which commit is deployed and test the full flow on a phone.
 
 ## 10. One-minute explanation

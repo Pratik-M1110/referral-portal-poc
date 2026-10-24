@@ -1,13 +1,13 @@
 # Referral Portal: setup on a new system
 
-This guide is for getting a fresh clone running locally on Windows. It describes the repository as it is today; it does not require copying generated build output or local credentials from another computer.
+This guide is for getting a fresh clone running locally on Windows. The normal team development setup uses the shared Aiven development database. Docker Compose MySQL is an isolated local alternative. Production will use a different database server.
 
 ## What to install
 
 - Git
-- Docker Desktop with Docker Compose
 - Java 21 JDK
 - Node.js 24 LTS (npm is included)
+- Docker Desktop with Docker Compose (optional; only needed for isolated local MySQL)
 
 The backend includes the Maven wrapper, so you do not need a separate Maven installation. The wrapper and frontend lockfile are committed and should be used for repeatable builds.
 
@@ -21,7 +21,9 @@ Set-Location referral-portal-poc
 Copy-Item .env.example .env
 ```
 
-The root `.env` is ignored by Git. The example contains local Docker database defaults; do not put real credentials in the example file or commit your `.env`.
+The root `.env` is ignored by Git. The example contains local Docker database defaults, not Aiven credentials. For the normal shared development setup, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` in `.env` to the Aiven development values provided privately by the project maintainer. Never commit `.env` or put credentials in chat, issues, or documentation. Keep `SEED_DEMO=false` when connecting to Aiven; it adds sample data to whichever database is configured. Production will use a different database server, not the shared development database.
+
+For an isolated local database instead, leave the local database values from `.env.example` in place and follow the optional Docker step below. Local database data stays in a Docker volume and is not shared with Aiven.
 
 The frontend's tracked `frontend/.env.development` points the Vite development server at `http://localhost:8080`. Change it only if you run the backend on a different address.
 
@@ -29,7 +31,7 @@ The frontend's tracked `frontend/.env.development` points the Vite development s
 
 Keep the following processes running in separate PowerShell terminals.
 
-### 1. Start the local MySQL database
+### 1. Optional: start isolated local MySQL
 
 From the repository root:
 
@@ -38,7 +40,7 @@ docker compose up -d mysql
 docker compose ps
 ```
 
-Compose exposes MySQL on host port `3307` and stores its data in a Docker volume. The Spring backend runs Flyway migrations on startup.
+Use this step only if `.env` is configured for local Docker MySQL. Compose exposes MySQL on host port `3307` and stores its data in a Docker volume. Skip it when using Aiven. The Spring backend runs Flyway migrations on startup for either database.
 
 ### 2. Start the backend
 
@@ -79,7 +81,7 @@ http://localhost:8080/login/oauth2/code/github
 
 Restart the backend after changing `.env`. Keep all real OAuth and mail credentials private; never paste them into source files, issues, chat, or commits. Without provider credentials, the application can start, but real OAuth sign-in and email delivery will not work.
 
-`SEED_DEMO=true` enables sample companies, users, and a sample inbox for local demonstrations. It is enabled by the copied `.env.example`. Keep it disabled in any real or production environment.
+`SEED_DEMO=true` enables sample companies, users, and a sample inbox in the configured database. Keep it `false` for the shared Aiven database and any production environment. Enable it only when intentionally seeding an isolated local demo database.
 
 ## Verify the setup
 
@@ -95,7 +97,7 @@ The backend health endpoint is `http://localhost:8080/actuator/health`.
 
 ## Stop services and preserve local data
 
-Stop the frontend and backend with `Ctrl+C`, then stop MySQL:
+Stop the frontend and backend with `Ctrl+C`. If you started local MySQL, stop it with:
 
 ```powershell
 docker compose down
@@ -105,8 +107,8 @@ The Docker volume normally preserves the local database for the next run. **Do n
 
 ## Common setup problems
 
-- **Docker cannot start:** Confirm Docker Desktop is running, then retry `docker compose up -d mysql`.
-- **Backend cannot connect to MySQL:** Check `docker compose ps` and confirm `.env` has the local database values from `.env.example`. The host port is `3307`, not the usual `3306`.
+- **Docker cannot start:** This only affects the local database option. Confirm Docker Desktop is running, then retry `docker compose up -d mysql`.
+- **Backend cannot connect to MySQL:** For Aiven, verify the privately provided development connection values and network access. For local MySQL, check `docker compose ps` and confirm `.env` has the local database values from `.env.example`. The host port is `3307`, not the usual `3306`.
 - **A port is already in use:** The defaults are MySQL `3307`, backend `8080`, and Vite `5173`. Stop the conflicting process or update the corresponding configuration consistently.
 - **OAuth reports a redirect/callback error:** Make sure the callback registered with the provider exactly matches the URL above and that the corresponding client ID/secret is in `.env`.
 - **Email verification does not send mail:** Configure valid Brevo SMTP credentials and `MAIL_FROM`; the app does not include email-provider credentials.
@@ -118,7 +120,7 @@ Keep the files needed to recreate the application under version control: source 
 
 Do not push `.env`, OAuth/SMTP credentials, database dumps, uploaded resumes, `node_modules`, frontend `dist`, or backend `target` build output. Those are local, sensitive, or reproducible.
 
-The root `README.md` is the repository's public setup entry point. The root `.gitignore` continues to exclude `CLAUDE.md`, `docs/MVP.md`, and the screen-ideas PDF. If future contributors or Copilot need the product brief or wireframes, review those files for private content before deciding whether to commit them.
+The root `README.md` is the repository's public setup entry point. The root `.gitignore` continues to exclude `CLAUDE.md`, `docs/MVP.md`, and the screen-ideas PDF. If future contributors or Copilot need the product brief or wireframes, review those files for private content before deciding whether to commit them. Never add Aiven credentials, database dumps, OAuth/SMTP credentials, or resume data to the repository.
 
 ## Ask Copilot for help on the new system
 
