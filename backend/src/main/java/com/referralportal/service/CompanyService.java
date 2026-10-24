@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import static com.referralportal.dto.CompanyDtos.CompaniesResponse;
@@ -35,6 +36,7 @@ public class CompanyService {
             allowance.bonusAvailable(), items);
     }
 
+    @Transactional
     public Map<String, Object> addToWishlist(Authentication auth, long companyId) {
         CurrentUser user = users.current(auth);
         if (!companies.existsById(companyId)) {
@@ -52,6 +54,7 @@ public class CompanyService {
         return Map.of("wishlisted", true);
     }
 
+    @Transactional
     public Map<String, Object> removeFromWishlist(Authentication auth, long companyId) {
         CurrentUser user = users.current(auth);
         companies.removeFromWishlist(user.id(), companyId);

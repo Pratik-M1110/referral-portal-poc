@@ -11,6 +11,7 @@ import com.referralportal.dto.ReferralRequestDtos.ReferrerInboxItem;
 import com.referralportal.dto.ReferralRequestDtos.SeekerRequest;
 import com.referralportal.service.CompanyReferralRequestService;
 import com.referralportal.service.CompanyService;
+import com.referralportal.service.CompanyService;
 import com.referralportal.service.ReferralRequestBudget;
 import com.referralportal.service.ReferralRequestScheduler;
 import com.referralportal.repository.jpa.ReferralRequestResponseJpaRepository;
@@ -51,6 +52,9 @@ class CompanyReferralRequestFlowTests {
 
     @Autowired
     private CompanyReferralRequestService requests;
+
+        @Autowired
+        private CompanyService companyService;
 
         @Autowired
         private CompanyService companies;
@@ -143,6 +147,25 @@ class CompanyReferralRequestFlowTests {
                 assertEquals(5, directory.referralRequestsMax());
                 assertEquals(5, directory.referralRequestsLeft());
                 assertEquals(0, directory.referralBonusCredits());
+        }
+
+        @Test
+        @Transactional(propagation = Propagation.NOT_SUPPORTED)
+        void wishlistInsertAndRemovalWorkWithCompositeKey() {
+                String suffix = UUID.randomUUID().toString().replace("-", "");
+                String seekerEmail = "wishlist-seeker-" + suffix + "@example.test";
+                long seekerId = insertUser("Wishlist Seeker", seekerEmail);
+                long companyId = insertCompany(suffix);
+
+                try {
+                        assertEquals(Boolean.TRUE, companyService.addToWishlist(authentication(seekerEmail, "Wishlist Seeker"), companyId).get("wishlisted"));
+                        assertEquals(1, count("wishlists", "seeker_id = ? AND company_id = ?", seekerId, companyId));
+                        assertEquals(Boolean.FALSE, companyService.removeFromWishlist(authentication(seekerEmail, "Wishlist Seeker"), companyId).get("wishlisted"));
+                        assertEquals(0, count("wishlists", "seeker_id = ? AND company_id = ?", seekerId, companyId));
+                } finally {
+                        jdbc.sql("DELETE FROM users WHERE id = ?").param(seekerId).update();
+                        jdbc.sql("DELETE FROM companies WHERE id = ?").param(companyId).update();
+                }
         }
 
     @Test
