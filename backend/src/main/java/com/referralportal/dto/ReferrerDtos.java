@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 public final class ReferrerDtos {
 
@@ -21,10 +22,12 @@ public final class ReferrerDtos {
     public record SettingsRequest(
             @NotNull Boolean openToMeet,
             @NotNull @Min(1) @Max(10) Integer slotCapacity,
-            @NotNull @Min(1) @Max(10) Integer referralLimit) {}
+            @NotNull @Min(1) @Max(10) Integer referralLimit,
+            @NotNull Boolean acceptsReferralRequests,
+            @Size(max = 10) List<String> referralRolePreferences) {}
 
     public record Settings(boolean verified, String workEmail, String companyName, boolean openToMeet,
-            int slotCapacity, int referralLimit) {}
+            int slotCapacity, int referralLimit, boolean acceptsReferralRequests, List<String> referralRolePreferences) {}
 
     public record VerificationStarted(boolean sent) {}
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import static com.referralportal.dto.ConversationDtos.ConversationView;
 import static com.referralportal.dto.ConversationDtos.MeetRequest;
@@ -18,37 +19,38 @@ import static com.referralportal.dto.ConversationDtos.MessageInput;
 import static com.referralportal.dto.ConversationDtos.ThreadView;
 
 @RestController
+@RequestMapping("/api")
 public class ConversationController {
 
     @Autowired
     private ConversationService conversations;
 
-    @GetMapping("/api/conversations")
+    @GetMapping("/conversations")
     public List<ConversationView> list(Authentication auth) {
         return conversations.list(auth);
     }
 
-    @GetMapping("/api/conversations/{id}/messages")
+    @GetMapping("/conversations/{id}/messages")
     public ThreadView thread(Authentication auth, @PathVariable long id) {
         return conversations.thread(auth, id);
     }
 
-    @PostMapping("/api/conversations/{id}/messages")
+    @PostMapping("/conversations/{id}/messages")
     public Map<String, Object> send(Authentication auth, @PathVariable long id, @Valid @RequestBody MessageInput input) {
         return conversations.send(auth, id, input);
     }
 
-    @PostMapping("/api/conversations")
+    @PostMapping("/conversations")
     public Map<String, Object> request(Authentication auth, @Valid @RequestBody MeetRequest input) {
         return conversations.request(auth, input);
     }
 
-    @PostMapping("/api/conversations/{id}/accept")
+    @PostMapping("/conversations/{id}/accept")
     public Map<String, Object> accept(Authentication auth, @PathVariable long id) {
         return conversations.accept(auth, id);
     }
 
-    @PostMapping("/api/conversations/{id}/decline")
+    @PostMapping("/conversations/{id}/decline")
     public Map<String, Object> decline(Authentication auth, @PathVariable long id) {
         return conversations.decline(auth, id);
     }

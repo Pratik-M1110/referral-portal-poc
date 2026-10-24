@@ -1,10 +1,12 @@
 package com.referralportal.service;
 
+import com.referralportal.common.ChipLists;
 import com.referralportal.dto.ReferrerDtos;
 import com.referralportal.repository.ReferrerRepository;
 import com.referralportal.user.CurrentUser;
 import java.security.SecureRandom;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -117,7 +119,9 @@ public class ReferrerService {
         if (!referrers.settings(user.id()).verified()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify your work email first.");
         }
-        referrers.updateSettings(user.id(), request.openToMeet(), request.slotCapacity(), request.referralLimit());
+        List<String> referralRoles = ChipLists.clean(request.referralRolePreferences(), 10, "referral role preferences");
+        referrers.updateSettings(user.id(), request.openToMeet(), request.slotCapacity(), request.referralLimit(),
+                request.acceptsReferralRequests(), referralRoles);
         return referrers.settings(user.id());
     }
 

@@ -24,13 +24,15 @@ public class CompanyService {
     @Autowired
     private CompanyRepository companies;
     @Autowired
-    private RequestBudget budget;
+    private ReferralRequestBudget requestBudget;
 
     public CompaniesResponse list(Authentication auth) {
         CurrentUser user = users.current(auth);
         Set<Long> wishlisted = companies.findWishlistedCompanyIds(user.id());
         List<CompanyDtos.CompanyView> items = companies.findCompanies(user.id(), wishlisted);
-        return new CompaniesResponse(wishlisted.size(), WISHLIST_MAX, budget.left(user.id()), RequestBudget.REQUESTS_MAX, items);
+        ReferralRequestBudget.Allowance allowance = requestBudget.allowance(user.id(), java.time.Instant.now());
+        return new CompaniesResponse(wishlisted.size(), WISHLIST_MAX, allowance.left(), allowance.baseMax(),
+            allowance.bonusAvailable(), items);
     }
 
     public Map<String, Object> addToWishlist(Authentication auth, long companyId) {

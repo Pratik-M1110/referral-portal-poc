@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import static com.referralportal.dto.ReferrerDtos.ConfirmVerificationRequest;
 import static com.referralportal.dto.ReferrerDtos.Settings;
@@ -17,27 +18,28 @@ import static com.referralportal.dto.ReferrerDtos.StartVerificationRequest;
 import static com.referralportal.dto.ReferrerDtos.VerificationStarted;
 
 @RestController
+@RequestMapping("/api")
 public class ReferrerController {
 
     @Autowired
     private ReferrerService referrers;
 
-    @PostMapping("/api/referrer/verify/start")
+    @PostMapping("/referrer/verify/start")
     public VerificationStarted start(Authentication authentication, @Valid @RequestBody StartVerificationRequest request) {
         return referrers.startVerification(authentication, request.workEmail());
     }
 
-    @PostMapping("/api/referrer/verify/confirm")
+    @PostMapping("/referrer/verify/confirm")
     public Settings confirm(Authentication authentication, @Valid @RequestBody ConfirmVerificationRequest request) {
         return referrers.confirmVerification(authentication, request.workEmail(), request.code());
     }
 
-    @GetMapping("/api/referrer/settings")
+    @GetMapping("/referrer/settings")
     public Settings settings(Authentication authentication) {
         return referrers.getSettings(authentication);
     }
 
-    @PutMapping("/api/referrer/settings")
+    @PutMapping("/referrer/settings")
     public Settings update(Authentication authentication, @Valid @RequestBody SettingsRequest request) {
         return referrers.updateSettings(authentication, request);
     }

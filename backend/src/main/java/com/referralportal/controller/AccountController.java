@@ -10,8 +10,10 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
+@RequestMapping("/api")
 public class AccountController {
 
     @Autowired
@@ -19,7 +21,7 @@ public class AccountController {
 
     private final SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
 
-    @DeleteMapping("/api/me/account")
+    @DeleteMapping("/me/account")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         accounts.deleteCurrent(authentication);

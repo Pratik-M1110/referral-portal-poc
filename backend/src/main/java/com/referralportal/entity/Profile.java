@@ -43,6 +43,9 @@ public class Profile {
     @Column(name = "linkedin_url", length = 300)
     private String linkedinUrl;
 
+    @Column(name = "phone_number", length = 32)
+    private String phoneNumber;
+
     @Column(name = "is_seeker", nullable = false)
     private boolean seeker = true;
 
@@ -115,6 +118,14 @@ public class Profile {
 
     public void setLinkedinUrl(String linkedinUrl) {
         this.linkedinUrl = linkedinUrl;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 
     public boolean isSeeker() {

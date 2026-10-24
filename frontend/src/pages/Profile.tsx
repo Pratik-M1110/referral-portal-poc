@@ -75,9 +75,9 @@ export default function ProfilePage({ me }: { me: Me }) {
   const [workEmail, setWorkEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
-  const [openToMeet, setOpenToMeet] = useState(false)
-  const [slotCapacity, setSlotCapacity] = useState(3)
   const [referralLimit, setReferralLimit] = useState(10)
+  const [acceptsReferralRequests, setAcceptsReferralRequests] = useState(false)
+  const [referralRolePreferences, setReferralRolePreferences] = useState<string[]>([])
 
   useEffect(() => {
     if (data) setForm(data)
@@ -86,9 +86,9 @@ export default function ProfilePage({ me }: { me: Me }) {
   useEffect(() => {
     if (!referrerSettings) return
     setWorkEmail(referrerSettings.workEmail ?? '')
-    setOpenToMeet(referrerSettings.openToMeet)
-    setSlotCapacity(referrerSettings.slotCapacity)
     setReferralLimit(referrerSettings.referralLimit)
+    setAcceptsReferralRequests(referrerSettings.acceptsReferralRequests)
+    setReferralRolePreferences(referrerSettings.referralRolePreferences)
   }, [referrerSettings])
 
   const save = useMutation({
@@ -102,6 +102,7 @@ export default function ProfilePage({ me }: { me: Me }) {
           rolesWanted: p.rolesWanted,
           githubUrl: p.githubUrl ?? '',
           linkedinUrl: p.linkedinUrl ?? '',
+          phoneNumber: p.phoneNumber ?? '',
           hideFromMyCompany: p.hideFromMyCompany,
         },
       }),
@@ -147,7 +148,13 @@ export default function ProfilePage({ me }: { me: Me }) {
   const saveReferrerSettings = useMutation({
     mutationFn: () => api<ReferrerSettings>('/api/referrer/settings', {
       method: 'PUT',
-      body: { openToMeet, slotCapacity, referralLimit },
+      body: {
+        openToMeet: referrerSettings?.openToMeet ?? false,
+        slotCapacity: referrerSettings?.slotCapacity ?? 3,
+        referralLimit,
+        acceptsReferralRequests,
+        referralRolePreferences,
+      },
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['referrer-settings'] })
@@ -215,6 +222,8 @@ export default function ProfilePage({ me }: { me: Me }) {
         <input id="gh" value={form.githubUrl ?? ''} onChange={(e) => set('githubUrl', e.target.value)} placeholder="https://github.com/you" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
         <label className="mt-3 block text-sm font-bold" htmlFor="li">LinkedIn</label>
         <input id="li" value={form.linkedinUrl ?? ''} onChange={(e) => set('linkedinUrl', e.target.value)} placeholder="https://linkedin.com/in/you" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
+        <label className="mt-3 block text-sm font-bold" htmlFor="phone-number">Phone number <span className="font-normal text-muted">(optional)</span></label>
+        <input id="phone-number" type="tel" maxLength={32} value={form.phoneNumber ?? ''} onChange={(e) => set('phoneNumber', e.target.value)} placeholder="+1 555 010 1234" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
       </Card>
 
       <Card>
@@ -237,16 +246,20 @@ export default function ProfilePage({ me }: { me: Me }) {
             <Chip tone={3}>Verified</Chip>
           </div>
           <label className="mt-4 flex items-start gap-3 text-sm">
-            <input type="checkbox" checked={openToMeet} onChange={(event) => setOpenToMeet(event.target.checked)} className="mt-1 h-4 w-4 accent-ggreen" />
+            <input type="checkbox" checked={acceptsReferralRequests} onChange={(event) => setAcceptsReferralRequests(event.target.checked)} className="mt-1 h-4 w-4 accent-ggreen" />
             <span>
-              <span className="font-bold">Open to meet</span>
-              <span className="block text-muted">Let seekers request a conversation with you.</span>
+              <span className="font-bold">Accept referral requests</span>
+              <span className="block text-muted">Opt in to requests from seekers at this company. Pause any time.</span>
             </span>
           </label>
-          <label className="mt-4 block text-sm font-semibold" htmlFor="slot-capacity">Conversation slots</label>
-          <input id="slot-capacity" type="number" min={1} max={10} value={slotCapacity} onChange={(event) => setSlotCapacity(Number(event.target.value))} className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen" />
-          <label className="mt-3 block text-sm font-semibold" htmlFor="referral-limit">Referral limit</label>
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-semibold">Areas you can help with <span className="font-normal text-muted">(optional)</span></p>
+            <ChipPicker options={LOOKING_FOR} value={referralRolePreferences} onChange={setReferralRolePreferences} max={10} />
+            <p className="mt-1 text-xs text-muted">Requests still go to all opted-in employees at your company; these preferences help you assess fit.</p>
+          </div>
+          <label className="mt-3 block text-sm font-semibold" htmlFor="referral-limit">Maximum active referral assignments</label>
           <input id="referral-limit" type="number" min={1} max={10} value={referralLimit} onChange={(event) => setReferralLimit(Number(event.target.value))} className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen" />
+          <p className="mt-1 text-xs text-muted">Accepted assignments count until you submit them or they close.</p>
           <ErrorNote message={saveReferrerSettings.error?.message ?? null} />
           <Button disabled={saveReferrerSettings.isPending} onClick={() => saveReferrerSettings.mutate()} className="mt-4">
             {saveReferrerSettings.isPending ? 'Saving…' : 'Save referrer settings'}
@@ -310,7 +323,7 @@ export default function ProfilePage({ me }: { me: Me }) {
       <Card className="border-gred/30">
         <h2 className="font-bold text-gred">Delete account</h2>
         <p className="mt-1 text-sm text-muted">
-          Permanently delete your profile, conversations, messages, and referral records. This cannot be undone.
+          Permanently delete your profile, conversations, messages, and referral request records. This cannot be undone.
         </p>
         <label className="mt-3 block text-sm font-semibold" htmlFor="delete-confirmation">
           Type DELETE to confirm

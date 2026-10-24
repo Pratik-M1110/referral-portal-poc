@@ -1,50 +1,125 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Heart, MapPin, Users } from 'lucide-react'
+import { ArrowRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, type Companies, type Company, type Person } from '../api'
-import { Avatar, Button, Card, Chip, ErrorNote, PageTitle, Spinner } from '../ui'
+import { api, type Companies, type Company, type Profile } from '../api'
+import { Avatar, Button, Card, Chip, EmptyState, ErrorNote, PageTitle, Spinner } from '../ui'
 
-const levelLabel: Record<string, string> = { student: 'Student', fresher: 'Fresher', '1-3': '1-3 yrs', '3-6': '3-6 yrs', '6+': '6+ yrs' }
-
-function RequestSheet({ company, person, requestsLeft, onClose }: { company: Company; person: Person; requestsLeft: number; onClose: () => void }) {
-  const navigate = useNavigate()
+function ReferralRequestSheet({ company, requestsLeft, onClose }: {
+  company: Company
+  requestsLeft: number
+  onClose: () => void
+}) {
   const qc = useQueryClient()
-  const [note, setNote] = useState('')
-  const send = useMutation({
-    mutationFn: () => api<{ id: number }>('/api/conversations', { method: 'POST', body: { referrerId: person.userId, note } }),
-    onSuccess: async (res) => {
+  const navigate = useNavigate()
+  const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/api/me/profile') })
+  const [roleTitle, setRoleTitle] = useState('')
+  const [jobUrl, setJobUrl] = useState('')
+  const [seekerNote, setSeekerNote] = useState('')
+  const [shareProfile, setShareProfile] = useState(true)
+  const [shareEmail, setShareEmail] = useState(false)
+  const [sharePhone, setSharePhone] = useState(false)
+  const create = useMutation({
+    mutationFn: () => api('/api/referral-requests', {
+      method: 'POST',
+      body: { companyId: company.id, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerEmail: shareEmail, shareSeekerPhone: sharePhone },
+    }),
+    onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['companies'] })
-      await qc.invalidateQueries({ queryKey: ['conversations'] })
-      navigate(`/chats/${res.id}`)
+      await qc.invalidateQueries({ queryKey: ['seeker-referral-requests'] })
+      onClose()
+      navigate('/referrals')
     },
   })
+
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-ink/40 px-3 pb-3 sm:items-center" onClick={onClose}>
-      <div className="rise w-full max-w-[430px] rounded-3xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-extrabold">Request to meet {person.name.split(' ')[0]}</h2>
-        <p className="text-sm text-muted">{person.jobTitle} at {company.name}</p>
-        <label htmlFor="note" className="mt-4 block text-sm font-bold">Why do you want to meet?</label>
-        <textarea
-          id="note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={200}
-          rows={4}
-          autoFocus
-          className="mt-2 w-full resize-none rounded-2xl border border-line px-4 py-3 text-sm outline-none focus:border-gblue"
-          placeholder="Say hello and what you would like to talk about"
-        />
-        <p className="text-right text-xs text-muted">{note.length}/200</p>
-        <p className="mb-3 text-xs text-muted">Requests left: {requestsLeft}. You can chat once they accept.</p>
-        <ErrorNote message={send.error?.message ?? null} />
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => send.mutate()} disabled={send.isPending || note.trim().length === 0}>
-            {send.isPending ? 'Sending…' : 'Send request'}
-          </Button>
+    <div className="fixed inset-0 z-20 flex items-end justify-center bg-ink/45 px-3 pb-3 sm:items-center" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="referral-request-title"
+        className="rise max-h-[92vh] w-full max-w-[500px] overflow-y-auto rounded-3xl border border-line bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="referral-request-title" className="text-xl font-extrabold">Request a referral</h2>
+            <p className="mt-1 text-sm text-muted">{company.name}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close request form" className="rounded-full px-3 py-1 text-muted hover:bg-line/60">Close</button>
         </div>
-      </div>
+        <p className="mt-3 text-sm text-muted">Your request goes to employees who opted in at this company. Accepting means someone is willing to help; it does not guarantee an opening, referral, or interview.</p>
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            create.mutate()
+          }}
+        >
+          <div>
+            <label className="text-sm font-semibold" htmlFor="role-title">Role you’re interested in</label>
+            <input
+              id="role-title"
+              required
+              maxLength={160}
+              value={roleTitle}
+              onChange={(event) => setRoleTitle(event.target.value)}
+              placeholder="e.g. Backend Engineer"
+              className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-gblue"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold" htmlFor="job-url">Job link <span className="font-normal text-muted">(optional)</span></label>
+            <input
+              id="job-url"
+              type="url"
+              maxLength={500}
+              value={jobUrl}
+              onChange={(event) => setJobUrl(event.target.value)}
+              placeholder="https://company.com/jobs/..."
+              className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-gblue"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold" htmlFor="request-context">A note for the referrers <span className="font-normal text-muted">(optional)</span></label>
+            <textarea
+              id="request-context"
+              maxLength={1000}
+              rows={3}
+              value={seekerNote}
+              onChange={(event) => setSeekerNote(event.target.value)}
+              placeholder="What kind of help are you looking for?"
+              className="mt-1 w-full resize-y rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-gblue"
+            />
+            <p className="text-right text-xs text-muted">{seekerNote.length}/1000</p>
+          </div>
+          <fieldset className="space-y-3 rounded-2xl bg-page p-3">
+            <legend className="px-1 text-sm font-bold">Information sharing</legend>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={shareProfile} onChange={(event) => setShareProfile(event.target.checked)} className="mt-1 accent-gblue" />
+              <span>Share my profile summary with invited referrers (experience, skills, role interests, and pitch).</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={shareEmail} onChange={(event) => setShareEmail(event.target.checked)} className="mt-1 accent-gblue" />
+              <span>Share my sign-in email only with employees who accept.</span>
+            </label>
+            {profile?.phoneNumber && (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={sharePhone} onChange={(event) => setSharePhone(event.target.checked)} className="mt-1 accent-gblue" />
+                <span>Share my phone number only with employees who accept.</span>
+              </label>
+            )}
+          </fieldset>
+          <p className="text-xs text-muted">Request allowance remaining: {requestsLeft}. One request covers this company and role, regardless of how many employees accept.</p>
+          <ErrorNote message={create.error?.message ?? null} />
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending || requestsLeft < 1 || !shareProfile} className="flex-1">
+              {create.isPending ? 'Sending…' : 'Send request'}
+            </Button>
+          </div>
+        </form>
+      </section>
     </div>
   )
 }
@@ -52,9 +127,9 @@ function RequestSheet({ company, person, requestsLeft, onClose }: { company: Com
 export default function CompaniesPage() {
   const qc = useQueryClient()
   const { data, isPending, isError } = useQuery({ queryKey: ['companies'], queryFn: () => api<Companies>('/api/companies') })
-  const [target, setTarget] = useState<{ company: Company; person: Person } | null>(null)
+  const [target, setTarget] = useState<Company | null>(null)
   const toggle = useMutation({
-    mutationFn: (c: Company) => api(`/api/wishlist/${c.id}`, { method: c.wishlisted ? 'DELETE' : 'PUT' }),
+    mutationFn: (company: Company) => api(`/api/wishlist/${company.id}`, { method: company.wishlisted ? 'DELETE' : 'PUT' }),
     onSettled: () => qc.invalidateQueries({ queryKey: ['companies'] }),
   })
 
@@ -63,70 +138,42 @@ export default function CompaniesPage() {
 
   return (
     <div>
-      <PageTitle title="Companies attending" />
-      <div className="mb-4 flex gap-2">
+      <PageTitle title="Companies" subtitle="Ask for help from employees who have opted in to referring candidates." />
+      <div className="mb-4 flex flex-wrap gap-2">
         <Chip tone={0}>Wishlist {data.wishlistCount} of {data.wishlistMax}</Chip>
-        <Chip tone={2}>Requests left {data.requestsLeft} of {data.requestsMax}</Chip>
+        <Chip tone={2}>{data.referralRequestsLeft} referral requests left</Chip>
+        <Chip tone={1}>{data.referralRequestsMax} base per 30 days</Chip>
+        {data.referralBonusCredits > 0 && <Chip tone={3}>{data.referralBonusCredits} bonus {data.referralBonusCredits === 1 ? 'credit' : 'credits'}</Chip>}
       </div>
       <ErrorNote message={toggle.error?.message ?? null} />
-      <div className="space-y-4">
-        {data.companies.map((c, i) => (
-          <Card key={c.id} className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Avatar name={c.name} />
-                <div>
-                  <p className="font-bold leading-tight">{c.name}</p>
-                  <p className="flex items-center gap-1 text-xs text-muted">
-                    {c.boothLabel ? <><MapPin size={12} /> {c.boothLabel}</> : 'Visiting the venue'}
-                    {c.sponsor && <span className="ml-1 rounded-full bg-gyellow/25 px-2 py-0.5 font-semibold text-yellow-700">Sponsor</span>}
-                  </p>
-                </div>
+      {data.companies.length === 0 ? (
+        <EmptyState title="No companies are accepting requests yet" text="Check back when employees at more companies opt in to help with referrals." />
+      ) : (
+        <div className="space-y-3">
+          {data.companies.map((company) => (
+            <Card key={company.id} className="flex items-center gap-3">
+              <Avatar name={company.name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold">{company.name}</p>
+                <p className="truncate text-xs text-muted">{company.domain}</p>
+                {company.sponsor && <span className="mt-1 inline-block rounded-full bg-gyellow/25 px-2 py-0.5 text-xs font-semibold text-yellow-700">Sponsor</span>}
               </div>
               <button
-                onClick={() => toggle.mutate(c)}
-                aria-label={c.wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                className={`rounded-full p-2 transition ${c.wishlisted ? 'bg-gred/10 text-gred' : 'bg-line/60 text-muted hover:text-gred'}`}
+                type="button"
+                onClick={() => toggle.mutate(company)}
+                aria-label={company.wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                className={`rounded-full p-2 transition ${company.wishlisted ? 'bg-gred/10 text-gred' : 'bg-line/60 text-muted hover:text-gred'}`}
               >
-                <Heart size={18} fill={c.wishlisted ? 'currentColor' : 'none'} />
+                <Heart size={18} fill={company.wishlisted ? 'currentColor' : 'none'} />
               </button>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <Users size={14} /> {c.roles.length} open role{c.roles.length === 1 ? '' : 's'} · {c.people.length} {c.people.length === 1 ? 'person' : 'people'} open to meet
-            </div>
-
-            <div className="space-y-2">
-              {c.roles.map((r, j) => (
-                <div key={r.id} className="rounded-2xl bg-page px-3 py-2">
-                  <p className="text-sm font-semibold">{r.title} {r.level && <span className="font-normal text-muted">· {levelLabel[r.level] ?? r.level}</span>}</p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {r.skills.map((s, k) => <Chip key={s} tone={i + j + k}>{s}</Chip>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {c.people.map((p) => (
-              <div key={p.userId} className="flex items-center justify-between gap-3 border-t border-line pt-3">
-                <div className="flex items-center gap-3">
-                  <Avatar name={p.name} size="sm" />
-                  <div>
-                    <p className="text-sm font-semibold leading-tight">{p.name}</p>
-                    <p className="text-xs text-muted">{p.jobTitle}</p>
-                  </div>
-                </div>
-                {p.fullyBooked ? (
-                  <Chip tone={1}>Fully booked</Chip>
-                ) : (
-                  <Button onClick={() => setTarget({ company: c, person: p })} disabled={data.requestsLeft === 0}>Request meet</Button>
-                )}
-              </div>
-            ))}
-          </Card>
-        ))}
-      </div>
-      {target && <RequestSheet {...target} requestsLeft={data.requestsLeft} onClose={() => setTarget(null)} />}
+              <Button onClick={() => setTarget(company)} disabled={data.referralRequestsLeft === 0} className="flex shrink-0 items-center gap-2 px-3">
+                <span>Request</span><ArrowRight size={16} />
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
+      {target && <ReferralRequestSheet company={target} requestsLeft={data.referralRequestsLeft} onClose={() => setTarget(null)} />}
     </div>
   )
 }

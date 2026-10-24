@@ -15,12 +15,12 @@ The live Render service deploys a Git branch. A feature branch is not live just 
 
 ## 1. The idea
 
-Referral Portal is a mobile-first event app that helps attendees and employees turn short, in-person conversations into tracked job referrals.
+Referral Portal is a mobile-first app where job seekers request help from opted-in employees and track referral handoffs at their companies.
 
 - A **seeker** creates a profile, browses companies, saves companies, and requests a conversation.
 - A **referrer** verifies a work email, can choose to be open to meet, and may refer a candidate.
-- A **conversation** starts as a meeting request. Chat is available after acceptance.
-- A **referral** is a tracked handoff. The portal does not submit a candidate to a company's hiring system.
+- A **referral request** is sent to opted-in employees at one company; multiple employees may accept.
+- A **referral** is a tracked internal handoff. The portal does not submit a candidate to a company's hiring system.
 
 The POC demonstrates part of this loop. It is not a job board, recruitment platform, or completed event-day system.
 
@@ -31,12 +31,16 @@ The POC demonstrates part of this loop. It is not a job board, recruitment platf
 | Google and GitHub sign-in | IN POC | OAuth creates a user the first time; later sign-ins reuse the account by email. |
 | Seeker profile | IN POC | Experience, skills, roles wanted, pitch, and profile links. Resume upload is not included. |
 | Work-email verification | IN POC | Six-digit emailed code; unlocks referrer settings. It is not required to sign in or save a seeker profile. |
-| Company directory | IN POC | Seeded/sample companies, roles, and verified employees who are open to meet. |
+| Company directory | IN POC | Companies with at least one verified employee opted in to referral requests; employee identities are not listed. |
 | Wishlist | IN POC | A seeker can save up to five companies. |
-| Meeting requests | IN POC | Request, accept, and decline are implemented. Demo referrers can auto-accept. |
-| Chat | IN POC | Requires acceptance and is limited to 20 total messages per conversation. |
+| Company referral requests | IN POC | A seeker requests one company/role; every opted-in employee is invited, and several can accept. |
+| Referral submission tracking | IN POC | Referrers mark internal submission; seekers confirm. The app does not submit to the employer's system. |
+| Referral request credits | IN POC | Five base requests per rolling 30 days; capped earned credits can raise the allowance. |
+| Referral reminders | IN POC | Accepted referrers receive up to three email reminders at two-day intervals. |
+| Light/dark theme | IN POC | Theme choice persists in the current browser. |
+| Legacy meeting/chat APIs | RETAINED, HIDDEN IN UI | Tables, endpoints, and old data remain for possible future use; the frontend no longer starts meetings or chats. |
 | QR badge | IN POC | Contains a random token, not the user's database ID. |
-| Referrals received | PARTIAL | The app can show received/seeded referral rows. Creating and managing a real referral is not complete. |
+| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and an optional job link. |
 | Account deletion | IN POC | Deletes a user's account and associated data after an explicit confirmation. It is permanent. |
 | Profile save without work email | BRANCH ONLY | The fix is on `bug/user-can-create-profile-without-work-email-fix`; confirm it has been merged and deployed before demoing. |
 | Database Explorer learning page | LOCAL ONLY | `frontend/public/database-explorer.html` is a local, untracked learning aid, not part of the current GitHub deployment. |
@@ -51,11 +55,11 @@ These are features for the larger product, not things a tester should assume are
 - Resume upload and private download.
 - Enforcement of the hide-from-my-company privacy option in search and scans.
 - Creating reports or blocks in the user interface. Existing block records are checked in conversation rules.
-- In-app notification workflow and referral notification emails. Brevo is used for verification-code email; the remaining email flows are not complete.
+- A separate notification center. Referral requests appear in the Referrals inbox, and invite/reminder emails use the configured mail provider.
 - Automated message-retention/purge job.
 - Admin console, sponsor dashboard, live event statistics, and bulk badge export.
 - PWA installation/offline support, full 1,000-person load testing, and end-to-end phone testing for all 14 planned screens.
-- Credit earning and spending. The ledger is read when calculating budget, but no credit events are currently created.
+- Meeting-request credits. The legacy ledger remains unused; company referral requests use their own expiring credit records.
 
 ## 4. How the application is organized
 
@@ -87,7 +91,7 @@ The `users` table is the identity anchor: one row per person. A person can be bo
 
 - `users` stores the sign-in identity, name, email, provider, consent time, and creation time.
 - `profiles` stores the seeker's experience, skills, pitch, and links. Its `user_id` points to `users.id`.
-- `referrer_profiles` stores the employee side: verified work email, company, job title, availability, slots, and referral limit.
+- `referrer_profiles` stores the employee side: verified work email, company, job title, referral-request opt-in, role preferences, and active-assignment limit. Verification alone does not opt someone in.
 - `badges` stores one random QR token per user.
 
 Sign-in email and work email are different concepts. The login email belongs to `users`; the verified company email belongs to `referrer_profiles` after OTP confirmation.
@@ -131,28 +135,29 @@ The user can save their profile without a work email. The backend inserts or upd
 
 ### D. Browse and save companies
 
-The company directory reads `companies` and its `open_roles`. The employees shown beneath a company come from `referrer_profiles` joined to `users`, filtered to verified employees who are open to meet. A seeker saving a company creates a row in `wishlists`.
+The company directory returns companies that have at least one verified employee who opted in to referral requests. Employee names are not listed. A seeker saving a company creates a row in `wishlists`.
 
 The wishlist's composite key (`seeker_id`, `company_id`) prevents duplicate saves. The five-company maximum is enforced by application code.
 
-**Tables:** `companies`, `open_roles`, `referrer_profiles`, `users`, `wishlists`.
+**Tables:** `companies`, `referrer_profiles`, `users`, `wishlists`.
 
-### E. Request a meeting and chat
+### E. Request a company referral
 
-1. A seeker requests a meeting with an available verified referrer.
-2. The backend checks that the target is not the seeker, is not their own company, is not blocked, has capacity, and the seeker has request budget.
-3. A `conversations` row is created with `status = pending`.
-4. The recipient accepts or declines. A decline is silent to the seeker.
-5. After acceptance, messages are stored in `messages`.
-6. A transaction first increments `conversations.message_count` only if it is under 20, then inserts the message. The limit is shared by both participants.
+1. Any seeker with a profile selects a company and free-form role title; a job URL and note are optional. Work-email verification is not required to seek a referral.
+2. The seeker explicitly consents to sharing a profile summary and chooses whether to share sign-in email and optional phone after acceptance.
+3. The backend validates the company, excludes the seeker's own verified company, enforces duplicate-request and rolling allowance rules, then creates one `company_referral_requests` row and one pending `referral_request_responses` row for every opted-in employee.
+4. Invitees receive an in-app inbox item and a work-email notification. Role preferences do not filter invitations. Multiple employees may accept; each acceptance independently uses active-assignment capacity and collects its contact-sharing choices.
+5. An accepted referrer uses the employer's internal process and marks the referral submitted. The app creates a `referrals` row but does not submit anything into the employer's internal portal.
+6. The seeker confirms that submission. The referrer may earn one bonus request credit, capped at two credits per rolling 30 days; credits expire after 90 days.
+7. Requests with no acceptance expire after four days and refund the request allowance. Accepted assignments receive up to three reminders at two-day intervals and close after day 10 if still unsubmitted.
 
-**Tables:** `conversations`, `messages`, `reports_blocks`, `credit_ledger`, plus `users`, `companies`, and `referrer_profiles` during checks.
+**Tables:** `company_referral_requests`, `referral_request_responses`, `referral_request_credits`, `referrals`, `notifications`, `profiles`, `referrer_profiles`, `companies`, and `users`.
 
-### F. Referral handoff
+### F. Legacy meetings and chat
 
-The full product will create a `referrals` row when an employee refers a candidate, then track its status. In this POC the received-referrals screen is partial/read-only; do not treat it as a complete referral workflow.
+The previous `conversations` and `messages` APIs, data model, and old records are retained, but the frontend no longer exposes the meeting/chat flow. They can be re-integrated later without deleting historical data.
 
-**Tables designed for this workflow:** `referrals`, `users`, `companies`, `open_roles`. `reviews` is reserved for private Save/Pass notes.
+**Tables:** `conversations`, `messages`. `reviews` remains reserved for private Save/Pass notes.
 
 ### G. Delete an account
 
@@ -160,7 +165,7 @@ The user confirms by typing `DELETE`. Deletion is permanent and runs in a transa
 
 ## 7. Database table guide
 
-The schema has **17 tables**, grouped by what they represent:
+The schema has **21 tables**, grouped by what they represent:
 
 | Table | Plain-language purpose | POC status |
 |---|---|---|
@@ -172,28 +177,32 @@ The schema has **17 tables**, grouped by what they represent:
 | `email_otps` | Hashed, expiring work-email verification codes | IN POC |
 | `badges` | Random QR token for each person | IN POC |
 | `wishlists` | Seeker-to-company saved-interest links | IN POC |
-| `conversations` | Meeting request and chat lifecycle/counter | IN POC |
-| `messages` | Chat text | IN POC |
-| `referrals` | Referral handoff and status history | PARTIAL/read-only display |
+| `company_referral_requests` | One seeker request for a company and role | IN POC |
+| `referral_request_responses` | Each invited employee's response and submission lifecycle | IN POC |
+| `referral_request_credits` | Earned, consumed, and expiring request credits | IN POC |
+| `conversations` | Legacy meeting request and chat lifecycle/counter | Retained; UI hidden |
+| `messages` | Legacy chat text | Retained; UI hidden |
+| `referrals` | Referral submission and status history | IN POC |
 | `reviews` | Referrer Save/Pass and private notes | NOT IN POC |
 | `scans` | QR scan history | NOT IN POC |
 | `reports_blocks` | Report/block records | PARTIAL; existing blocks are checked |
 | `credit_ledger` | Request credits | PARTIAL; currently contributes zero |
-| `notifications` | In-app event notifications | NOT IN POC |
+| `notifications` | Referral invitation and status notifications | IN POC |
 | `resume_files` | Private resume file data | NOT IN POC |
 
 ## 8. Demo data and test status
 
-- Demo mode seeds one fictional "Demo Company" with five demo referrer users (Asha, Rohan, Meera, Sneha, Karan) so the directory is populated. Demo referrers may auto-accept requests to make the chat flow easy to try.
+- Demo mode seeds one fictional "Demo Company" with five demo referrer users (Asha, Rohan, Meera, Sneha, Karan); those fictional employees are opted in so the company appears in the new directory.
 - Demo data is not real hiring activity and must be turned off for a real event launch.
-- Backend tests cover Spring startup, work-email verification rules, and account deletion. The frontend has a production build check.
+- Backend tests cover startup, work-email verification, account deletion, referral requests, contact consent, expiry/refunds, reminders, and API route compatibility. The frontend has lint/build checks.
 - CI checks the backend and frontend builds when changes are pushed to GitHub.
 - A passing test/build is not a substitute for testing sign-in and email delivery on the actual hosted service.
 
 ## 9. Important POC limits and risks
 
-- The POC does not provide the complete referrer candidate workflow or camera scanning.
-- Resume, reports, notifications, retention, privacy filtering, and admin tools need implementation before relying on them for the event.
+- The app tracks that an employee submitted a referral but cannot submit a candidate into an employer's internal hiring system.
+- Resume upload, reports, message retention, camera scanning, and admin tools are not implemented.
+- The browser theme preference is not synchronized between devices or accounts.
 - Account deletion is permanent; test it with a disposable account, not a primary account.
 - Email codes depend on working Brevo SMTP settings and deliverability.
 - Render free services can sleep when idle; Aiven free MySQL can power down. This is demo hosting, not a production reliability guarantee.
@@ -201,7 +210,7 @@ The schema has **17 tables**, grouped by what they represent:
 
 ## 10. One-minute explanation
 
-> One person signs in and gets a row in `users` plus a random QR badge. Their seeker details go in `profiles`. If they verify a company email, `referrer_profiles` connects that same person to a company. Wishlists record company interest. A meeting request is a `conversations` row; accepted conversations can contain up to 20 `messages`. A referral will be recorded in `referrals` once that action is implemented. Foreign keys connect these records, and transactions keep important multi-step changes together.
+> One person signs in and gets a row in `users` plus a random QR badge. Their seeker profile works without company-email verification. A verified employee separately opts in to help with referrals. A seeker request creates one company/role record and individual responses for opted-in employees. Accepted employees can share selected contacts, mark an internal referral submitted, and receive reminders; the seeker confirms submission before the referrer earns a capped request credit. The portal tracks the handoff but does not submit to the company's internal hiring system.
 
 ---
 

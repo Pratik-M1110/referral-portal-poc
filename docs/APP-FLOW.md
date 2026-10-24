@@ -5,7 +5,7 @@ which service/repository handles it, and which database tables/columns are read 
 It reflects the code as of late October 2026 (post Spring Data JPA migration), not the full
 product brief — gaps are called out explicitly at the end of each section.
 
-Stack: Spring Boot (Java) + MySQL (Flyway migration `V1__init.sql`) on the backend,
+Stack: Spring Boot (Java) + MySQL (Flyway migrations through `V3__company_referral_requests.sql`) on the backend,
 React + Vite on the frontend. Auth is session-based (Spring Security OAuth2 Client), not JWT.
 
 Backend code layout: `controller/` → `service/` → `repository/` → `repository/jpa/` (the active
@@ -15,10 +15,14 @@ request/response records and an `entity/` package of JPA `@Entity` classes (one 
 Flyway migrations remain the real source of truth for the schema (`ddl-auto: none`); Hibernate
 never generates or alters DDL, it only maps onto the existing tables. All beans use `@Autowired`
 field injection throughout (controllers, services, repositories).
+Each REST API controller declares the common `@RequestMapping("/api")` prefix; method mappings
+are relative, and the resulting public URLs remain `/api/...`. `SpaController` keeps its
+unprefixed frontend page routes.
 
 - **`entity/`** — one `@Entity` class per table (`User`, `Profile`, `Company`,
   `ReferrerProfile`, `OpenRole`, `Wishlist`, `Badge`, `Conversation`, `Message`, `Referral`,
-  `Review`, `EmailOtp`, `ResumeFile`, `ReportsBlock`, `CreditLedger`, `Notification`). Each
+  `CompanyReferralRequest`, `ReferralRequestResponse`, `ReferralRequestCredit`, `Review`,
+  `EmailOtp`, `ResumeFile`, `ReportsBlock`, `CreditLedger`, `Notification`). Each
   maps its table via `@Table`, and FKs are modelled as real object references
   (`@ManyToOne`/`@OneToOne` + `@JoinColumn`), e.g. `Conversation.seeker`/`Conversation.referrer`
   are `User` references, not raw `Long` ids.
@@ -172,28 +176,27 @@ Runs in one DB transaction (`confirmInTransaction`):
      entity for this user (`company`, `workEmail`, `verifiedAt=now`, `referrer=true`), with
      defaults `openToMeet=false`, `slotCapacity=3`, `referralLimit=10`, and saves it.
    - Deletes all OTPs for the user (cleanup).
-7. Returns the referrer `Settings` (verified, work email, company name, open-to-meet,
-   slot capacity, referral limit) so the UI can immediately show the "Referrer at {Company}"
-   chip and settings form.
+7. Returns the referrer `Settings` (verified, work email, company name, meeting availability,
+   referral-request opt-in, role preferences, and assignment limit) so the UI can show the
+   "Referrer at {Company}" chip and settings form.
 
 ### 3c. Update referrer settings (`PUT /api/referrer/settings`)
 - Requires `verified_at IS NOT NULL` first (`403 Verify your work email first.`).
-- Lets the referrer toggle `open_to_meet` and adjust `slot_capacity` / `referral_limit`
-  within bounds set in the UI (1–10).
+- Lets the referrer toggle the legacy `open_to_meet` setting and the separate
+  `accepts_referral_requests` opt-in, set role preferences, and adjust the legacy
+  `slot_capacity` plus active referral `referral_limit` (1–10).
 
 **Tables touched:** `email_otps` (insert/update/delete), `companies` (insert-if-absent),
 `referrer_profiles` (insert/update).
 
 ### If the user has NOT verified their work email yet — what happens?
 - `referrer_profiles` has no row (or `verified_at IS NULL`) for them.
-- `GET /api/me` → `isReferrer = false`. The **mode toggle** ("Find opportunities" / "Refer
-  people") and the **Badge header link in referrer mode** simply don't render — there is
-  nothing to switch to.
-- They can still use every seeker feature (Companies, wishlist, meet requests, chat, badge,
-  referrals-received) normally.
-- They **cannot**: appear in any company's "employees open to meet" list, be scanned as a
-  referrer, accept/decline meet requests as a referrer, or change referrer settings
-  (`PUT /api/referrer/settings` returns `403` until verified).
+- `GET /api/me` → `isReferrer = false`. The profile shows the work-email verification form;
+  referral-request opt-in controls are available only after verification.
+- They can still use seeker features (company directory, wishlist, referral requests, badge,
+  and their own referral status) without verifying a work email.
+- They cannot opt in to receive referral requests or respond as a referrer, or change verified
+  referrer settings (`PUT /api/referrer/settings` returns `403` until verified).
 - There's no partial/pending state surfaced in the UI beyond the verify-email form itself —
   verification is binary (not verified → verified), not a multi-step "pending review" queue.
 
@@ -208,12 +211,10 @@ Runs in one DB transaction (`confirmInTransaction`):
 [CompanyRepository.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/repository/CompanyRepository.java)
 
 **Listing (`GET /api/companies`):**
-- `CompanyJpaRepository.findAllByOrderBySponsorDescNameAsc()` for the company list, with
-  `OpenRoleJpaRepository.findByCompanyIdOrderById()` (role counts/views) and
-  `ReferrerProfileJpaRepository.findAll()` filtered in-memory to verified, `openToMeet=true`
-  profiles, to list open-to-meet employees per company.
-- Computes `wishlistCount` (rows in `wishlists` for this user, via `WishlistJpaRepository`) vs.
-  max **5**, and `requestsLeft` via `RequestBudget.left()` (see §5) vs. max **3**.
+- Returns companies with at least one verified employee who has opted in to referral requests.
+  It excludes the seeker's own verified company and does not return employee names or identities.
+- Returns the seeker's wishlist count (maximum **5**) and separate company-referral request
+  allowance fields: base allowance **5 per rolling 30 days** plus available earned credits.
 - Marks each company `wishlisted: true/false` based on the caller's own `wishlists` rows.
 
 **Add to wishlist (`PUT /api/wishlist/:companyId`):**
@@ -233,56 +234,50 @@ Runs in one DB transaction (`confirmInTransaction`):
 
 ---
 
-## 5. Meet requests → accept/decline → chat
+## 5. Company referral requests
 
-Already covered in depth in earlier answers, repeated here for completeness as part of the
-unified flow. See
-[ConversationService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/ConversationService.java),
-[ConversationRepository.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/repository/ConversationRepository.java).
+The former per-employee meeting/chat entry points are removed from the frontend. Their
+controllers, endpoints, schema, and existing records are retained as legacy code. New referral
+requests use a separate request/response lifecycle.
 
-**Request budget:** `RequestBudget.left(seekerId)` = `3 + SUM(credit_ledger.delta) − count of
-conversations this person started as seeker`. `credit_ledger` exists in the schema for V1.5
-("earn +1 request") but nothing writes to it yet, so it's effectively always `3 − used`.
+**Create (`POST /api/referral-requests`):**
+- Any signed-in seeker with a profile can request a referral; work-email verification is not
+  required. The seeker chooses a company and free-form role title, optionally adds a job URL
+  and note, and explicitly consents to sharing their profile summary.
+- The company must have at least one verified, opted-in referrer. A seeker cannot request help
+  from their own verified company or submit another active request for the same company/role.
+- One company/role request counts once, regardless of how many employee responses it creates.
+  All currently opted-in employees at that company receive a pending response and email.
+- The seeker may choose whether to share their sign-in email and optional profile phone number.
+  Those fields remain hidden from employees until they accept.
+- The request has a four-day response window. If nobody accepts, it expires and refunds the
+  base allowance or restores the bonus credit that was consumed.
 
-**Send a request (`POST /api/conversations`):**
-1. Can't request yourself.
-2. Target must be a **verified, `open_to_meet=TRUE`** referrer (`findOpenReferrer`) → else 404.
-3. Can't request your own verified company (`hasVerifiedCompany`) → 409.
-4. Can't request a blocked person (checks `reports_blocks` both directions) → 403.
-5. Target must not be fully booked: `countAcceptedForReferrer(referrerId) < slot_capacity` → else 409.
-6. Caller must have budget left (`RequestBudget.left() > 0`) → else 409.
-7. In one transaction: a `Conversation` entity is built (seeker/referrer set via
-   `getReferenceById`, `initiatedBy='seeker'`, `firstMessage=note`, `status='pending'`) and
-   saved via `ConversationJpaRepository.save()`. A `UNIQUE (seeker_id, referrer_id)` constraint
-   means **one conversation per pair, ever** — a duplicate request now throws
-   `DataIntegrityViolationException` → 409 "You already have a conversation with this person."
-8. (Dev-only) if `app.seed-demo=true` and the target is a seeded demo referrer, the
-   conversation is auto-accepted with a canned first message, so demo data looks alive.
+**Employee inbox and decisions (`GET /api/referral-requests/inbox`, `POST /api/referral-requests/{id}/accept|decline`):**
+- Only verified employees who opted in for that company are invited and can respond. Role
+  preferences are informational; they do not filter the invitation list.
+- Employees see the seeker name and the profile fields the seeker consented to share, but no
+  contact fields before acceptance. Each employee can accept or decline independently; several
+  employees may accept one request.
+- Accepting requires remaining active-assignment capacity (`referral_limit`, 1–10). The
+  employee separately chooses whether to share their verified work email and profile phone.
+  Each participant sees only the contact fields the other participant chose to share.
+- Declines are shown as an anonymous count to the seeker; the directory never exposes employee
+  identities.
 
-**Accept/decline (`POST /api/conversations/:id/accept|decline`):**
-- Only the **non-initiator** can decide, and only while `status='pending'`.
-- Accept additionally re-checks slot capacity at the moment of accepting (so a referrer can't
-  over-accept if they already filled slots from other concurrent requests).
-- A bulk `@Modifying` JPQL update — `update Conversation set status=:status where id=:id and
-  status='pending'` — the `status='pending'` guard makes this safe against double-submits.
+**Submission, confirmation, and earned credits:**
+- An accepting referrer marks the referral submitted after using their company's internal
+  process (`POST /api/referral-requests/{id}/submitted`). This creates a row in `referrals`;
+  the app does not submit candidates to an employer's internal system.
+- The seeker confirms the submission for that specific referrer. Confirmation can award that
+  referrer one bonus request credit, at most two credits per rolling 30 days. Credits expire
+  after 90 days. This referral allowance is separate from the legacy meeting budget.
+- Accepted but unsubmitted assignments trigger up to three work-email reminders, two days
+  apart. They close on day 10 and release the referrer's active-assignment capacity.
 
-**Chat (`GET/POST /api/conversations/:id/messages`):**
-- Only works once `status='accepted'`, and if the pair isn't blocked.
-- Each send runs `ConversationJpaRepository.incrementMessageCount` — a bulk `@Modifying` JPQL
-  update (`update Conversation set messageCount=messageCount+1 where id=:id and
-  status='accepted' and messageCount<20`) that returns the affected-row count; 0 rows means
-  409 ("used all 20 messages"); otherwise the `Message` entity (with the conversation set via
-  `getReferenceById`) is inserted in the **same transaction**. This is what makes the
-  20-message cap atomic even with two people typing simultaneously.
-- Frontend polls `GET /api/conversations` every 5s and `GET /.../messages` every 4s (no
-  WebSockets).
-
-**Tables touched:** `conversations`, `messages`, `reports_blocks` (read), `referrer_profiles`
-(read), `credit_ledger` (read only, unused for writes today).
-
-**Gap vs. brief:** the referrer-initiated "Invite to chat" button (which should set
-`initiated_by='referrer'` and not consume the seeker's budget) has the schema support but no
-endpoint/service code yet — every request today is seeker-initiated.
+**Tables touched:** `company_referral_requests`, `referral_request_responses`,
+`referral_request_credits`, `referrer_profiles`, `profiles`, `notifications`, `referrals`,
+`companies`, and `users`.
 
 ---
 
@@ -307,37 +302,24 @@ to scan someone else's badge to open their profile.
 
 ---
 
-## 7. Referrals (received / "My referrals")
+## 7. Referral tracking
 
-**Where:** [Referrals.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/Referrals.tsx) →
-`GET /api/referrals?as=candidate` →
-[ReferralController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/ReferralController.java) →
-[ReferralService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/ReferralService.java) →
-[ReferralRepository.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/repository/ReferralRepository.java)
+The Referrals screen shows both requests sent by the current seeker and requests assigned to
+the current referrer. The seeker sees pending/declined counts without the identities of
+employees who declined; after acceptance they see participating referrers and only the contact
+fields those referrers consented to share. Referrers see their invited requests, consent choices,
+submission actions, and reminder count. The frontend polls request status every 10 seconds.
 
-- Reads `referrals` via `ReferralJpaRepository`, filtered to `candidate_id = currentUser`,
-  ordered by `updated_at DESC`, with `company`, `referrer` (a `User`) and `role` (an
-  `OpenRole`, nullable) resolved through the entity's `@ManyToOne` associations rather than a
-  hand-written SQL join.
-- Shown fields: company name, referrer name, role title (nullable), status
-  (`submitted|under_review|interview|closed`), last updated time.
-- Polled every 10s.
-
-**Tables touched:** `referrals` (read-only), joined with `companies`/`users`/`open_roles`.
-
-**Gap vs. brief — this is the big one:** there is **no `POST /api/referrals`, no Scan tab, no
-Candidates list, no Candidate card, and no Refer/Save/Pass buttons** in the code. The
-`reviews` table (Save/Pass + private note) and the referral-creation path described in the
-brief (§3 rule 9) are not implemented. Every row currently visible in "My referrals" comes
-from `DemoDataSeeder` test data, not a live user action. Referrers also have no "Referrals
-made" screen, no referral_limit enforcement in practice, and no "Copy referral packet" /
-status-update UI yet.
+The existing `GET /api/referrals` endpoint still lists formal referral rows. A formal row is
+created when an accepted employee marks a request submitted; confirmation by the seeker is
+tracked separately on the response and controls the earned-credit award. No hiring-system
+integration, candidate search, or resume upload is part of this flow.
 
 ---
 
 ## 8. Account deletion
 
-**Where:** `DELETE /api/account` → [AccountController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/AccountController.java) →
+**Where:** `DELETE /api/me/account` → [AccountController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/AccountController.java) →
 [AccountService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/AccountService.java) →
 [UserRepository.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/repository/UserRepository.java)
 
@@ -349,7 +331,8 @@ status-update UI yet.
   loaded can trip a Hibernate flush-ordering check; a direct bulk delete avoids that entirely.
 - Deleting `users` cascades (via `ON DELETE CASCADE` FKs) to `profiles`, `referrer_profiles`,
   `badges`, `wishlists`, `email_otps`, `resume_files`, `credit_ledger`, `notifications`,
-  `reports_blocks`, and `messages` (through the `conversations` cascade) automatically.
+  `reports_blocks`, company referral requests/responses/credits, and `messages` (through the
+  `conversations` cascade) automatically.
   The explicit deletes above exist specifically because `conversations`/`reviews`/`referrals`
   were **not** given `ON DELETE CASCADE` (MySQL forbids a cascading FK on a column that also
   has a `CHECK` constraint, e.g. `seeker_id <> referrer_id`), so the app does that cleanup
@@ -373,21 +356,22 @@ yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bu
 | Seeker profile (pitch, skills, roles, links, hide-from-company) | ✅ Implemented |
 | Resume upload (PDF, stored in DB) | ❌ Not implemented (schema/entity only) |
 | Work-email OTP verification, auto company creation from domain | ✅ Implemented |
-| Companies list, open-role counts, open-to-meet employees | ✅ Implemented |
+| Companies list with opted-in referrer availability, no employee names | ✅ Implemented |
 | Wishlist (max 5, no self-company) | ✅ Implemented |
-| Meet requests (budget 3, no self-company, capacity check) | ✅ Implemented |
-| Accept/decline, slot capacity re-check | ✅ Implemented |
-| Chat, 20-message atomic cap, polling | ✅ Implemented |
-| Contact-sharing banner | ✅ Implemented |
+| Company referral requests (5 per 30 days, multiple opted-in referrers) | ✅ Implemented |
+| Referral accept/decline, active assignment capacity, contact consent | ✅ Implemented |
+| Submission confirmation, capped credits, expiry/refund | ✅ Implemented |
+| In-app invitation notifications and capped email reminders | ✅ Implemented |
+| Legacy meet/chat UI | Hidden; backend APIs/data retained |
 | Badge + QR token generation/display | ✅ Implemented |
-| Referrer-initiated "Invite to chat" | ⚠️ Schema ready, not wired up |
+| Referrer-initiated "Invite to chat" | ⚠️ Legacy API; UI hidden |
 | Scan a badge / check-in | ❌ Not implemented |
 | Candidates list, Candidate card | ❌ Not implemented |
 | Refer / Save / Pass actions | ❌ Not implemented |
-| "My referrals" (view only) | ✅ Implemented (read-only; demo data only) |
+| Seeker/referrer referral request inbox and status | ✅ Implemented |
 | "Referrals made", copy packet, status update | ❌ Not implemented |
 | Block / report | ⚠️ Block is enforced in chat/requests; no report-submission UI found |
-| Credit ledger (+1 request) | ⚠️ Schema + read path only, nothing writes |
+| Legacy meeting credit ledger | ⚠️ Unused; referral-request credits use separate expiring records |
 | Message retention job (30-90 days) | ❌ Not implemented |
 | Admin panel (stats, companies, sponsors, report queue, export) | ❌ Not implemented |
 | LinkedIn sign-in | ❌ Not implemented (not required for MVP-1) |

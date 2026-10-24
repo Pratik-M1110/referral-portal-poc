@@ -19,9 +19,9 @@ public class ProfileRepository {
     public ProfileView findByUserId(long userId) {
         return profiles.findById(userId)
                 .map(p -> new ProfileView(p.getPitch(), p.getExperienceLevel(), ChipLists.fromJson(p.getSkills()),
-                        ChipLists.fromJson(p.getRolesWanted()), p.getGithubUrl(), p.getLinkedinUrl(),
+                    ChipLists.fromJson(p.getRolesWanted()), p.getGithubUrl(), p.getLinkedinUrl(), p.getPhoneNumber(),
                         p.isHideFromMyCompany(), true))
-                .orElse(new ProfileView("", "fresher", List.of(), List.of(), "", "", true, false));
+                .orElse(new ProfileView("", "fresher", List.of(), List.of(), "", "", "", true, false));
     }
 
     public void save(long userId, ProfileDtos.ProfileInput input, List<String> skills, List<String> roles) {
@@ -38,6 +38,7 @@ public class ProfileRepository {
         profile.setRolesWanted(ChipLists.toJson(roles));
         profile.setGithubUrl(blankToNull(input.githubUrl()));
         profile.setLinkedinUrl(blankToNull(input.linkedinUrl()));
+        profile.setPhoneNumber(blankToNull(input.phoneNumber()));
         profile.setHideFromMyCompany(input.hideFromMyCompany());
         profiles.save(profile);
     }

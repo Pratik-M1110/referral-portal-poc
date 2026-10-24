@@ -101,14 +101,18 @@ public class DemoDataSeeder implements ApplicationRunner {
                 created.setCreatedAt(Instant.now());
                 return users.save(created);
             });
-            if (!referrerProfiles.findById(user.getId()).isPresent()) {
-                ReferrerProfile profile = new ReferrerProfile();
+            ReferrerProfile profile = referrerProfiles.findById(user.getId()).orElse(null);
+            if (profile == null) {
+                profile = new ReferrerProfile();
                 profile.setUser(user);
                 profile.setCompany(company);
                 profile.setWorkEmail(email);
                 profile.setVerifiedAt(Instant.now());
                 profile.setOpenToMeet(true);
                 profile.setJobTitle(person.title());
+            }
+            if ("demo".equals(user.getAuthProvider())) {
+                profile.setAcceptsReferralRequests(true);
                 referrerProfiles.save(profile);
             }
             if (!badges.existsById(user.getId())) {

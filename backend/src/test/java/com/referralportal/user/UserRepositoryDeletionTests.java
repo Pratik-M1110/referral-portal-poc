@@ -16,7 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.security.oauth2.client.registration.google.client-id=test-google-client",
         "spring.security.oauth2.client.registration.google.client-secret=test-google-secret",
         "spring.security.oauth2.client.registration.github.client-id=test-github-client",
-        "spring.security.oauth2.client.registration.github.client-secret=test-github-secret"
+        "spring.security.oauth2.client.registration.github.client-secret=test-github-secret",
+        "spring.datasource.url=jdbc:mysql://localhost:3307/referral_portal?allowPublicKeyRetrieval=true&useSSL=false",
+        "spring.datasource.username=referral",
+        "spring.datasource.password=referral_local",
+        "app.seed-demo=false"
 })
 @Transactional
 class UserRepositoryDeletionTests {
@@ -54,6 +58,10 @@ class UserRepositoryDeletionTests {
         jdbc.sql("INSERT INTO messages (conversation_id, sender_id, body) VALUES (?, ?, 'hello'), (?, ?, 'reply')")
                 .params(seekerConversation, accountId, referrerConversation, accountId).update();
         jdbc.sql("INSERT INTO credit_ledger (user_id, delta, reason) VALUES (?, 1, 'test')").param(accountId).update();
+        ReferralRequestIds seekerRequest = insertReferralRequest(accountId, otherId, companyId, suffix + "-seeker");
+        ReferralRequestIds referrerRequest = insertReferralRequest(otherId, accountId, companyId, suffix + "-referrer");
+        jdbc.sql("INSERT INTO referral_request_credits (user_id, source_response_id, expires_at) "
+                + "VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 90 DAY))").params(accountId, referrerRequest.responseId()).update();
         jdbc.sql("INSERT INTO reports_blocks (reporter_id, target_id, type) VALUES (?, ?, 'block')")
                 .params(accountId, otherId).update();
         jdbc.sql("INSERT INTO notifications (user_id, type) VALUES (?, 'test')").param(accountId).update();
@@ -76,6 +84,11 @@ class UserRepositoryDeletionTests {
         assertEquals(0, count("credit_ledger", "user_id = ?", accountId));
         assertEquals(0, count("reports_blocks", "reporter_id = ? OR target_id = ?", accountId, accountId));
         assertEquals(0, count("notifications", "user_id = ?", accountId));
+        assertEquals(0, count("company_referral_requests", "id = ?", seekerRequest.requestId()));
+        assertEquals(1, count("company_referral_requests", "id = ?", referrerRequest.requestId()));
+        assertEquals(0, count("referral_request_responses", "id = ?", seekerRequest.responseId()));
+        assertEquals(0, count("referral_request_responses", "id = ?", referrerRequest.responseId()));
+        assertEquals(0, count("referral_request_credits", "user_id = ?", accountId));
     }
 
     private long insertUser(String email) {
@@ -98,6 +111,20 @@ class UserRepositoryDeletionTests {
                 .params(seekerId, referrerId).update(keys);
         return keys.getKey().longValue();
     }
+
+        private ReferralRequestIds insertReferralRequest(long seekerId, long referrerId, long companyId, String role) {
+                KeyHolder requestKeys = new GeneratedKeyHolder();
+                jdbc.sql("INSERT INTO company_referral_requests (seeker_id, company_id, role_title, expires_at) "
+                                + "VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 4 DAY))")
+                                .params(seekerId, companyId, role).update(requestKeys);
+                long requestId = requestKeys.getKey().longValue();
+                KeyHolder responseKeys = new GeneratedKeyHolder();
+                jdbc.sql("INSERT INTO referral_request_responses (request_id, referrer_id) VALUES (?, ?)")
+                                .params(requestId, referrerId).update(responseKeys);
+                return new ReferralRequestIds(requestId, responseKeys.getKey().longValue());
+        }
+
+        private record ReferralRequestIds(long requestId, long responseId) {}
 
     private long count(String table, String predicate, Object... parameters) {
         return jdbc.sql("SELECT COUNT(*) FROM " + table + " WHERE " + predicate)

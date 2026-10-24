@@ -14,28 +14,76 @@ export type Profile = {
   rolesWanted: string[]
   githubUrl: string | null
   linkedinUrl: string | null
+  phoneNumber: string | null
   hideFromMyCompany: boolean
   exists: boolean
 }
 
-export type Role = { id: number; title: string; level: string | null; skills: string[] }
-export type Person = { userId: number; name: string; jobTitle: string | null; fullyBooked: boolean }
 export type Company = {
   id: number
   name: string
   domain: string
-  boothLabel: string | null
   sponsor: boolean
   wishlisted: boolean
-  roles: Role[]
-  people: Person[]
 }
 export type Companies = {
   wishlistCount: number
   wishlistMax: number
-  requestsLeft: number
-  requestsMax: number
+  referralRequestsLeft: number
+  referralRequestsMax: number
+  referralBonusCredits: number
   companies: Company[]
+}
+
+export type SeekerResponse = {
+  responseId: number
+  status: string
+  referrerName: string
+  referrerTitle: string | null
+  referrerEmail: string | null
+  referrerPhone: string | null
+  acceptedAt: string | null
+  submittedAt: string | null
+  confirmedAt: string | null
+}
+
+export type SeekerReferralRequest = {
+  id: number
+  companyName: string
+  roleTitle: string
+  jobUrl: string | null
+  seekerNote: string | null
+  status: string
+  createdAt: string
+  expiresAt: string
+  pendingCount: number
+  declinedCount: number
+  responses: SeekerResponse[]
+}
+
+export type ReferralRequestInboxItem = {
+  responseId: number
+  requestId: number
+  companyName: string
+  roleTitle: string
+  jobUrl: string | null
+  seekerName: string
+  experienceLevel: string | null
+  skills: string[]
+  rolesWanted: string[]
+  referralRolePreferences: string[]
+  pitch: string | null
+  githubUrl: string | null
+  linkedinUrl: string | null
+  seekerNote: string | null
+  canSharePhone: boolean
+  seekerEmail: string | null
+  seekerPhone: string | null
+  status: string
+  createdAt: string
+  acceptedAt: string | null
+  submittedAt: string | null
+  remindersSent: number
 }
 
 export type Conversation = {
@@ -72,6 +120,8 @@ export type ReferrerSettings = {
   openToMeet: boolean
   slotCapacity: number
   referralLimit: number
+  acceptsReferralRequests: boolean
+  referralRolePreferences: string[]
 }
 
 // Dev builds point sign-in links at Spring Boot directly (see .env.development); production is same-origin.

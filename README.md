@@ -73,6 +73,20 @@ http://localhost:8080/login/oauth2/code/google
 http://localhost:8080/login/oauth2/code/github
 ```
 
+## Referral workflow
+
+Anyone with a seeker profile can request a referral; work-email verification is not required to seek help. The Companies page shows companies with at least one verified employee who has opted in to referral requests, without listing employee identities. A seeker chooses a role title, may add a job link and note, and explicitly chooses which profile/contact details can be shared.
+
+One request covers one company and role, even when multiple employees accept. Every opted-in employee at that company receives an in-app request and an email. Employees can accept or decline; accepted employees can share their own contact fields by consent, then mark the referral submitted after using their company's internal process. A seeker confirms submission in the app. Acceptance does not guarantee an opening, completed referral, or interview.
+
+All users start with 5 requests per rolling 30 days. A submitted referral confirmed by the seeker can earn the referrer one extra request credit, up to 2 credits per 30 days; credits expire after 90 days. Requests with no acceptance expire after 4 days and return one request to the seeker's allowance. Accepted assignments receive up to 3 email reminders at 2-day intervals and close after day 10 if left unsubmitted.
+
+Referrers must verify a work email, then separately opt in to receive requests. They can pause the opt-in, choose role-help preferences (informational only; requests still go to all opted-in employees), and set a cap of 1-10 active accepted assignments. Optional phone numbers are saved in the profile and shared only when each participant consents for that request. Resume upload is not implemented.
+
+The app defaults to light theme. Use the Sun/Moon control to switch themes; the choice is saved in the current browser.
+
+The former meeting/chat UI is hidden for now. Its backend endpoints, tables, and existing records remain in the repository for possible future reintroduction.
+
 ## Start the application
 
 Keep Docker Desktop running. Run each service in its own PowerShell terminal.

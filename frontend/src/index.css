@@ -18,6 +18,20 @@
   --color-line: #e8eaed;
 }
 
+html {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-seeker-soft: #18314b;
+  --color-referrer-soft: #193b2b;
+  --color-ink: #e7eaee;
+  --color-muted: #a8b0b8;
+  --color-page: #171b20;
+  --color-line: #39414a;
+}
+
 html,
 body,
 #root {
@@ -34,6 +48,54 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+html[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(66, 133, 244, 0.09), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(52, 168, 83, 0.06), transparent 35%),
+    var(--color-page);
+}
+
+html[data-theme='dark'] .bg-white {
+  background-color: #232a31;
+}
+
+html[data-theme='dark'] .bg-white\/80 {
+  background-color: rgb(35 42 49 / 80%);
+}
+
+html[data-theme='dark'] .bg-white\/90 {
+  background-color: rgb(35 42 49 / 90%);
+}
+
+html[data-theme='dark'] .github-sign-in {
+  background-color: #101418;
+}
+
+html[data-theme='dark'] .bg-gblue\/10 {
+  background-color: rgb(66 133 244 / 18%);
+}
+
+html[data-theme='dark'] .bg-gred\/10 {
+  background-color: rgb(234 67 53 / 18%);
+}
+
+html[data-theme='dark'] .bg-gyellow\/20 {
+  background-color: rgb(251 188 4 / 18%);
+}
+
+html[data-theme='dark'] .bg-ggreen\/10 {
+  background-color: rgb(52 168 83 / 18%);
+}
+
+html[data-theme='dark'] .text-yellow-700 {
+  color: #f3cb54;
+}
+
+html[data-theme='dark'] input::placeholder,
+html[data-theme='dark'] textarea::placeholder {
+  color: #8e99a3;
 }
 
 @keyframes rise {

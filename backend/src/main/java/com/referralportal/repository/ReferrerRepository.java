@@ -1,5 +1,6 @@
 package com.referralportal.repository;
 
+import com.referralportal.common.ChipLists;
 import com.referralportal.entity.Company;
 import com.referralportal.entity.ReferrerProfile;
 import com.referralportal.repository.jpa.CompanyJpaRepository;
@@ -98,15 +99,19 @@ public class ReferrerRepository {
     public Settings settings(long userId) {
         return referrerProfiles.findById(userId)
                 .map(rp -> new Settings(rp.getVerifiedAt() != null, rp.getWorkEmail(), rp.getCompany().getName(),
-                        rp.isOpenToMeet(), rp.getSlotCapacity(), rp.getReferralLimit()))
-                .orElse(new Settings(false, null, null, false, 3, 10));
+                rp.isOpenToMeet(), rp.getSlotCapacity(), rp.getReferralLimit(), rp.isAcceptsReferralRequests(),
+                ChipLists.fromJson(rp.getReferralRolePreferences())))
+            .orElse(new Settings(false, null, null, false, 3, 10, false, List.of()));
     }
 
-    public void updateSettings(long userId, boolean openToMeet, int slotCapacity, int referralLimit) {
+        public void updateSettings(long userId, boolean openToMeet, int slotCapacity, int referralLimit,
+            boolean acceptsReferralRequests, List<String> referralRolePreferences) {
         referrerProfiles.findById(userId).filter(rp -> rp.getVerifiedAt() != null).ifPresent(rp -> {
             rp.setOpenToMeet(openToMeet);
             rp.setSlotCapacity((short) slotCapacity);
             rp.setReferralLimit((short) referralLimit);
+            rp.setAcceptsReferralRequests(acceptsReferralRequests);
+            rp.setReferralRolePreferences(ChipLists.toJson(referralRolePreferences));
             referrerProfiles.save(rp);
         });
     }
