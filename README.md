@@ -4,6 +4,8 @@ A local-development proof of concept for discovering companies, requesting refer
 
 This guide covers a fresh Windows 10/11 setup using PowerShell, Docker Desktop, and the local MySQL database. For additional setup notes, see [docs/SETUP-ON-NEW-SYSTEM.md](docs/SETUP-ON-NEW-SYSTEM.md).
 
+For the current system diagrams and component overview, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Prerequisites
 
 - Windows 10 (version 2004/build 19041 or later) or Windows 11, 64-bit.
