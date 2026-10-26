@@ -93,11 +93,11 @@ export default function App() {
     setTheme(nextTheme)
   }
 
-  if (isPending) return <><div className="fixed right-3 top-3 z-20"><ThemeButton theme={theme} onToggle={toggleTheme} /></div><Spinner /></>
+  if (isPending) return <><div className="pointer-events-none fixed inset-x-0 top-3 z-20 mx-auto flex max-w-[430px] justify-end px-5"><div className="pointer-events-auto"><ThemeButton theme={theme} onToggle={toggleTheme} /></div></div><Spinner /></>
   if (isError) {
     return (
       <div className="min-h-screen">
-        <div className="fixed right-3 top-3 z-20"><ThemeButton theme={theme} onToggle={toggleTheme} /></div>
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-20 mx-auto flex max-w-[430px] justify-end px-5"><div className="pointer-events-auto"><ThemeButton theme={theme} onToggle={toggleTheme} /></div></div>
         <div className="mx-auto max-w-[430px] p-6 pt-16">
           <ErrorNote message="Cannot reach the server. Please check that the backend is running and refresh." />
         </div>
@@ -107,7 +107,7 @@ export default function App() {
   if (!me) {
     return (
       <div className="min-h-screen">
-        <div className="fixed right-3 top-3 z-20"><ThemeButton theme={theme} onToggle={toggleTheme} /></div>
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-20 mx-auto flex max-w-[430px] justify-end px-5"><div className="pointer-events-auto"><ThemeButton theme={theme} onToggle={toggleTheme} /></div></div>
         <SignIn loginError={new URLSearchParams(window.location.search).has('loginError')} />
       </div>
     )
