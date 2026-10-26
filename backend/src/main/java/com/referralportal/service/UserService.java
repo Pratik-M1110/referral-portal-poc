@@ -1,13 +1,11 @@
 package com.referralportal.service;
 
-import com.referralportal.demo.DemoDataSeeder;
 import com.referralportal.repository.UserRepository;
 import com.referralportal.user.CurrentUser;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -27,12 +25,6 @@ public class UserService {
     private UserRepository users;
     @Autowired
     private TransactionTemplate tx;
-    @Autowired
-    private DemoDataSeeder demo;
-
-    @Value("${app.seed-demo:false}")
-    private boolean seedDemo;
-
     public CurrentUser current(Authentication auth) {
         if (!(auth instanceof OAuth2AuthenticationToken token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
@@ -51,11 +43,7 @@ public class UserService {
     private long create(String name, String email, String provider) {
         try {
             return Objects.requireNonNull(tx.execute(status -> {
-                long id = users.createAccount(name, email, provider, newToken());
-                if (seedDemo) {
-                    demo.seedWelcome(id);
-                }
-                return id;
+                return users.createAccount(name, email, provider, newToken());
             }));
         } catch (DataIntegrityViolationException e) {
             return Objects.requireNonNull(users.findIdByEmail(email));

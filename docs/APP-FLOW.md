@@ -80,11 +80,6 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
    - A random 128-bit hex token is generated, a `Badge` entity is built referencing that user
      (via `getReferenceById`, not a raw FK), and saved via `BadgeJpaRepository.save()` —
      **every user gets a QR badge the moment their account is created**, seeker or not.
-   - If `app.seed-demo=true` (local/dev only), `DemoDataSeeder.seedWelcome(id)` populates a
-     starter inbox (sample chat, pending invite, two referrals) so a fresh demo account
-     doesn't look empty. The seeder itself is now also JPA-based (`UserJpaRepository`,
-     `ConversationJpaRepository`, `MessageJpaRepository`, `ReferralJpaRepository`, etc.),
-     not raw SQL.
 4. Session cookie is issued; the frontend calls `GET /api/me` to find out who's signed in
    ([MeService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/MeService.java)):
    - `hasProfile`: does a row exist in `profiles` for this user?

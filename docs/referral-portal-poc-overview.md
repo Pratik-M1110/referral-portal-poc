@@ -71,7 +71,7 @@ This is one Git repository with two applications:
 | Backend | Java 21, Spring Boot, Maven | OAuth, API endpoints, authorization, business rules, email, and database access. During development it runs on port 8080. |
 | Database | MySQL 8 | Stores accounts, profiles, companies, requests, chats, and other records. |
 | Schema changes | Flyway SQL migrations | Creates and updates tables when the backend starts. |
-| Shared development database | Aiven MySQL | Shared development/demo data; connection details are supplied privately and kept in the ignored root `.env`. |
+| Shared development database | Aiven MySQL | Shared development data; connection details are supplied privately and kept in the ignored root `.env`. |
 | Isolated local database | Docker Compose | Optional MySQL on port 3307, separate from Aiven and persisted in a local Docker volume. |
 | Production database | Separate database server | Production will use a different database server from shared development Aiven. |
 | Hosted app | Render Docker Web Service | Builds and runs the combined React + Spring Boot image. |
@@ -84,7 +84,7 @@ The backend uses an explicit **controller → service → repository** layout, w
 4. **DTO** (`dto/`) — Java records used to carry data to and from API requests, all consolidated in one package.
 5. **Entity** (`entity/`) — JPA `@Entity` classes (one per table) that document the schema and its foreign-key relationships with annotations such as `@OneToOne`, `@ManyToOne`, `@OneToMany`, and `@JoinColumn`.
 
-Flyway SQL migrations manage the schema, and repository data access uses Spring Data JPA repositories backed by JPA entities. Hibernate does not generate schema changes (`ddl-auto: none`). The configured database is selected through environment variables; the application does not select Aiven or Docker based on `SEED_DEMO`.
+Flyway SQL migrations manage the schema, and repository data access uses Spring Data JPA repositories backed by JPA entities. Hibernate does not generate schema changes (`ddl-auto: none`). The configured database is selected through environment variables; demo data is not seeded by the application.
 
 ## 5. The people and account model
 
@@ -116,7 +116,7 @@ flowchart LR
 4. If the email already exists, the app reuses that account.
 5. The app checks whether a `profiles` row exists and routes the user to Profile or Companies.
 
-**Tables:** `users`, `badges`, then `profiles` when checking onboarding. Optional demo data may add conversations/referrals for new accounts.
+**Tables:** `users`, `badges`, then `profiles` when checking onboarding. New accounts do not receive seeded conversations or referrals.
 
 ### B. Create a seeker profile
 
@@ -191,10 +191,10 @@ The schema has **20 tables**, grouped by what they represent:
 | `notifications` | Referral invitation and status notifications | IN POC |
 | `resume_files` | Private resume file data | NOT IN POC |
 
-## 8. Demo data and test status
+## 8. Initial data and test status
 
-- When `SEED_DEMO=true`, demo mode seeds one fictional "Demo Company" with five demo referrer users (Asha, Rohan, Meera, Sneha, Karan); those fictional employees are opted in so the company appears in the directory. The setting adds data to the configured database; it does not choose the database. Leave it false for shared Aiven and production.
-- Demo data is not real hiring activity and must be turned off for a real event launch.
+- The application does not automatically seed demo companies, users, roles, conversations, or referrals. A company is created when an employee verifies a work email; no sample referrers are added.
+- The shared Aiven database may still contain existing records until they are deliberately removed; removing the seeder does not delete existing database rows.
 - Backend tests cover startup, work-email verification, account deletion, referral requests, contact consent, expiry/refunds, reminders, and API route compatibility. The frontend has lint/build checks.
 - CI checks the backend and frontend builds when changes are pushed to GitHub.
 - A passing test/build is not a substitute for testing sign-in and email delivery on the actual hosted service.

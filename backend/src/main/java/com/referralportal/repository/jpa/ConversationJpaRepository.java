@@ -34,10 +34,6 @@ public interface ConversationJpaRepository extends JpaRepository<Conversation, L
     int declinePending(@Param("id") long conversationId);
 
     @Modifying
-    @Query("update Conversation c set c.status = 'accepted', c.messageCount = 1 where c.id = :id")
-    int acceptDemo(@Param("id") long conversationId);
-
-    @Modifying
     @Query("delete from Conversation c where c.seeker.id = :userId or c.referrer.id = :userId")
     void deleteBySeekerIdOrReferrerId(@Param("userId") long userId);
 }
