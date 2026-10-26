@@ -55,7 +55,7 @@ Set-Location referral-portal-poc
 Copy-Item .env.example .env
 ```
 
-The normal team development setup uses the shared Aiven development database. In the ignored root `.env`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` to the development values provided privately by the project maintainer. The checked-in `.env.example` contains local Docker defaults, not Aiven credentials. Never commit `.env` or put credentials in chat, issues, or documentation. Keep `SEED_DEMO=false` when using Aiven; demo seeding writes sample companies and users into the selected database. Production will use a different database server, not the shared development database.
+The normal team development setup uses the shared Aiven development database. In the ignored root `.env`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` to the development values provided privately by the project maintainer. The checked-in `.env.example` contains local Docker defaults, not Aiven credentials. Never commit `.env` or put credentials in chat, issues, or documentation. The app does not automatically seed demo companies, users, or roles. Production will use a different database server, not the shared development database.
 
 To use an isolated local database instead, keep the local database values from `.env.example` and start Docker Compose MySQL in the next section. Local Docker data is separate from Aiven and is persisted in a Docker volume.
 

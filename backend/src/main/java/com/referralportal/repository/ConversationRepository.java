@@ -113,14 +113,6 @@ public class ConversationRepository {
         return conversation.getId();
     }
 
-    public void acceptDemoConversation(long conversationId, long referrerId, String seekerName) {
-        conversations.acceptDemo(conversationId);
-        String trimmed = seekerName == null ? "" : seekerName.trim();
-        int space = trimmed.indexOf(' ');
-        String firstName = space > 0 ? trimmed.substring(0, space) : trimmed;
-        insertMessage(conversationId, referrerId, "Hi " + firstName + "! Happy to chat. Where are you at the venue?");
-    }
-
     public void accept(long conversationId) {
         conversations.acceptPending(conversationId);
     }

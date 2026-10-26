@@ -10,7 +10,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
-/** Resume bytes stored in MySQL for the zero-cost demo (see section 7: move to S3-compatible storage later). */
+/** Resume bytes stored in MySQL; object storage may be used in a future deployment. */
 @Entity
 @Table(name = "resume_files")
 public class ResumeFile {

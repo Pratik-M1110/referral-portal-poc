@@ -21,7 +21,7 @@ Set-Location referral-portal-poc
 Copy-Item .env.example .env
 ```
 
-The root `.env` is ignored by Git. The example contains local Docker database defaults, not Aiven credentials. For the normal shared development setup, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` in `.env` to the Aiven development values provided privately by the project maintainer. Never commit `.env` or put credentials in chat, issues, or documentation. Keep `SEED_DEMO=false` when connecting to Aiven; it adds sample data to whichever database is configured. Production will use a different database server, not the shared development database.
+The root `.env` is ignored by Git. The example contains local Docker database defaults, not Aiven credentials. For the normal shared development setup, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` in `.env` to the Aiven development values provided privately by the project maintainer. Never commit `.env` or put credentials in chat, issues, or documentation. The app does not automatically seed demo companies, users, or roles. Production will use a different database server, not the shared development database.
 
 For an isolated local database instead, leave the local database values from `.env.example` in place and follow the optional Docker step below. Local database data stays in a Docker volume and is not shared with Aiven.
 
@@ -81,7 +81,7 @@ http://localhost:8080/login/oauth2/code/github
 
 Restart the backend after changing `.env`. Keep all real OAuth and mail credentials private; never paste them into source files, issues, chat, or commits. Without provider credentials, the application can start, but real OAuth sign-in and email delivery will not work.
 
-`SEED_DEMO=true` enables sample companies, users, and a sample inbox in the configured database. Keep it `false` for the shared Aiven database and any production environment. Enable it only when intentionally seeding an isolated local demo database.
+The app does not seed demo data on startup or create a sample inbox for new accounts. A company is created when an employee verifies a work email; company roles must be provisioned separately if needed.
 
 ## Verify the setup
 

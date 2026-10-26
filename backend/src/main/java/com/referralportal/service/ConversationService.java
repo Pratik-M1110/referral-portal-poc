@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -33,9 +32,6 @@ public class ConversationService {
     private TransactionTemplate transactions;
     @Autowired
     private RequestBudget budget;
-
-    @Value("${app.seed-demo:false}")
-    private boolean seedDemo;
 
     public List<ConversationView> list(Authentication auth) {
         CurrentUser user = users.current(auth);
@@ -80,7 +76,6 @@ public class ConversationService {
         }
         ConversationRepository.ReferrerTarget target = conversations.findOpenReferrer(input.referrerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "This person is not open to meet."));
-        boolean demoReferrer = "demo".equals(target.authProvider());
         if (conversations.hasVerifiedCompany(seeker.id(), target.companyId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot request a meeting at your own company.");
         }
@@ -95,11 +90,7 @@ public class ConversationService {
         }
         try {
             long id = Objects.requireNonNull(transactions.execute(status -> {
-                long conversationId = conversations.createConversation(seeker.id(), input.referrerId(), input.note().trim());
-                if (seedDemo && demoReferrer) {
-                    conversations.acceptDemoConversation(conversationId, input.referrerId(), seeker.name());
-                }
-                return conversationId;
+                return conversations.createConversation(seeker.id(), input.referrerId(), input.note().trim());
             }));
             return Map.of("id", id, "requestsLeft", budget.left(seeker.id()));
         } catch (DataIntegrityViolationException e) {
