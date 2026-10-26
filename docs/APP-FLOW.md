@@ -61,7 +61,7 @@ Two JPA patterns worth knowing if you touch this code:
 **Where:** [SignIn.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/SignIn.tsx) →
 Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/UserService.java) →
 [UserRepository.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/repository/UserRepository.java)
-as
+
 **Flow:**
 1. User clicks "Continue with Google" or "Continue with GitHub". This hits Spring Security's
    built-in `/oauth2/authorization/{google|github}` endpoint (configured in
