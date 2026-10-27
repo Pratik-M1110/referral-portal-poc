@@ -111,7 +111,7 @@ public class CompanyReferralRequestService {
         request.setJobUrl(blankToNull(input.jobUrl()));
         request.setSeekerNote(blankToNull(input.seekerNote()));
         request.setShareProfile(true);
-        request.setShareSeekerEmail(Boolean.TRUE.equals(input.shareSeekerEmail()));
+        request.setShareSeekerEmail(true);
         request.setShareSeekerPhone(Boolean.TRUE.equals(input.shareSeekerPhone()));
         request.setCreatedAt(now);
         request.setExpiresAt(now.plus(REQUEST_DAYS, ChronoUnit.DAYS));

@@ -242,14 +242,14 @@ requests use a separate request/response lifecycle.
 
 **Create (`POST /api/referral-requests`):**
 - Any signed-in seeker with a profile can request a referral; work-email verification is not
-  required. The seeker chooses a company and free-form role title, optionally adds a job URL
-  and note, and explicitly consents to sharing their profile summary.
+  required. The seeker chooses a company and free-form role title, provides an HTTPS job URL,
+  may add a note, and explicitly consents to sharing their profile summary.
 - The company must have at least one verified, opted-in referrer. A seeker cannot request help
   from their own verified company or submit another active request for the same company/role.
 - One company/role request counts once, regardless of how many employee responses it creates.
   All currently opted-in employees at that company receive a pending response and email.
-- The seeker may choose whether to share their sign-in email and optional profile phone number.
-  Those fields remain hidden from employees until they accept.
+- The seeker's sign-in email is shared with employees who accept; it remains hidden from
+  pending invitees. The seeker may choose whether to share their optional profile phone number.
 - The request has a four-day response window. If nobody accepts, it expires and refunds the
   base allowance or restores the bonus credit that was consumed.
 

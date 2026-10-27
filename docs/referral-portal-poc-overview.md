@@ -40,7 +40,7 @@ The POC demonstrates part of this loop. It is not a job board, recruitment platf
 | Light/dark theme | IN POC | Theme choice persists in the current browser. |
 | Legacy meeting/chat APIs | RETAINED, HIDDEN IN UI | Tables, endpoints, and old data remain for possible future use; the frontend no longer starts meetings or chats. |
 | QR badge | IN POC | Contains a random token, not the user's database ID. |
-| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and an optional job link. |
+| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and provide a job link with each request. |
 | Account deletion | IN POC | Deletes a user's account and associated data after an explicit confirmation. It is permanent. |
 | Profile save without work email | IN POC | Work-email verification is optional for seeker features and only required to become a referrer. |
 | Database Explorer learning page | IN POC | `frontend/public/database-explorer.html` is tracked and served as a static page. |
@@ -144,8 +144,8 @@ The wishlist's composite key (`seeker_id`, `company_id`) prevents duplicate save
 
 ### E. Request a company referral
 
-1. Any seeker with a profile selects a company and free-form role title; a job URL and note are optional. Work-email verification is not required to seek a referral.
-2. The seeker explicitly consents to sharing a profile summary and chooses whether to share sign-in email and optional phone after acceptance.
+1. Any seeker with a profile selects a company and free-form role title and provides an HTTPS job URL; a note is optional. Work-email verification is not required to seek a referral.
+2. The seeker explicitly consents to sharing a profile summary. Their sign-in email is shared only with employees who accept; sharing an optional phone remains a separate choice.
 3. The backend validates the company, excludes the seeker's own verified company, enforces duplicate-request and rolling allowance rules, then creates one `company_referral_requests` row and one pending `referral_request_responses` row for every opted-in employee.
 4. Invitees receive an in-app inbox item and a work-email notification. Role preferences do not filter invitations. Multiple employees may accept; each acceptance independently uses active-assignment capacity and collects its contact-sharing choices.
 5. An accepted referrer uses the employer's internal process and marks the referral submitted. The app creates a `referrals` row but does not submit anything into the employer's internal portal.
