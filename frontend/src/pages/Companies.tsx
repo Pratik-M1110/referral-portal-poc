@@ -17,12 +17,11 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
   const [jobUrl, setJobUrl] = useState('')
   const [seekerNote, setSeekerNote] = useState('')
   const [shareProfile, setShareProfile] = useState(true)
-  const [shareEmail, setShareEmail] = useState(false)
   const [sharePhone, setSharePhone] = useState(false)
   const create = useMutation({
     mutationFn: () => api('/api/referral-requests', {
       method: 'POST',
-      body: { companyId: company.id, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerEmail: shareEmail, shareSeekerPhone: sharePhone },
+      body: { companyId: company.id, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerPhone: sharePhone },
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['companies'] })
@@ -69,10 +68,11 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
             />
           </div>
           <div>
-            <label className="text-sm font-semibold" htmlFor="job-url">Job link <span className="font-normal text-muted">(optional)</span></label>
+            <label className="text-sm font-semibold" htmlFor="job-url">Job link</label>
             <input
               id="job-url"
               type="url"
+              required
               maxLength={500}
               value={jobUrl}
               onChange={(event) => setJobUrl(event.target.value)}
@@ -99,10 +99,7 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
               <input type="checkbox" checked={shareProfile} onChange={(event) => setShareProfile(event.target.checked)} className="mt-1 accent-gblue" />
               <span>Share my profile summary with invited referrers (experience, skills, role interests, and pitch).</span>
             </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={shareEmail} onChange={(event) => setShareEmail(event.target.checked)} className="mt-1 accent-gblue" />
-              <span>Share my sign-in email only with employees who accept.</span>
-            </label>
+            <p className="text-sm text-muted">Your sign-in email is shared only with employees who accept.</p>
             {profile?.phoneNumber && (
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={sharePhone} onChange={(event) => setSharePhone(event.target.checked)} className="mt-1 accent-gblue" />

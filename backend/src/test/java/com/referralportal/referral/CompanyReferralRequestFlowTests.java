@@ -15,6 +15,7 @@ import com.referralportal.service.CompanyService;
 import com.referralportal.service.ReferralRequestBudget;
 import com.referralportal.service.ReferralRequestScheduler;
 import com.referralportal.repository.jpa.ReferralRequestResponseJpaRepository;
+import jakarta.validation.Validator;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -51,6 +52,9 @@ class CompanyReferralRequestFlowTests {
 
     @Autowired
     private CompanyReferralRequestService requests;
+
+        @Autowired
+        private Validator validator;
 
         @Autowired
         private CompanyService companyService;
@@ -96,7 +100,7 @@ class CompanyReferralRequestFlowTests {
 
         SeekerRequest request = requests.create(authentication(seekerEmail, "Seeker"),
                 new CreateRequest(companyId, "Backend Engineer", "https://jobs.example.test/backend", "Please consider my profile.",
-                        true, true, true));
+                        true, true));
 
         assertEquals(2, request.pendingCount());
         assertEquals(2, count("referral_request_responses", "request_id = ?", request.id()));
@@ -108,6 +112,10 @@ class CompanyReferralRequestFlowTests {
         long firstResponseId = firstInbox.responseId();
 
         requests.accept(authentication(firstReferrerEmail, "First Referrer"), request.id(), new AcceptRequest(true, true));
+        assertEquals(seekerEmail, inboxItem(requests.inbox(authentication(firstReferrerEmail, "First Referrer")))
+                .seekerEmail());
+        assertNull(inboxItem(requests.inbox(authentication(secondReferrerEmail, "Second Referrer")))
+                .seekerEmail());
         requests.accept(authentication(secondReferrerEmail, "Second Referrer"), request.id(), new AcceptRequest(false, false));
         SeekerRequest afterAccept = requests.seekerRequests(authentication(seekerEmail, "Seeker")).getFirst();
         assertEquals(2, afterAccept.responses().size());
@@ -123,6 +131,14 @@ class CompanyReferralRequestFlowTests {
         assertEquals(1, count("referrals", "referrer_id = ? AND candidate_id = ? AND company_id = ?",
                 firstReferrerId, seekerId, companyId));
     }
+
+        @Test
+        void createRequestRequiresHttpsJobUrl() {
+                CreateRequest request = new CreateRequest(1L, "Backend Engineer", "", "", true, false);
+
+                assertTrue(validator.validate(request).stream()
+                                .anyMatch(violation -> "jobUrl".equals(violation.getPropertyPath().toString())));
+        }
 
         @Test
         void directoryShowsOnlyCompaniesWithOptedInReferrersAndNoEmployeeData() {
@@ -178,7 +194,7 @@ class CompanyReferralRequestFlowTests {
         insertReferrer(referrerId, companyId, "expiry-work-" + suffix + "@company.test");
         String seekerEmail = "expiry-seeker-" + suffix + "@example.test";
         SeekerRequest request = requests.create(authentication(seekerEmail, "Expiry Seeker"),
-                new CreateRequest(companyId, "Data Engineer", "", "", true, false, false));
+                new CreateRequest(companyId, "Data Engineer", "https://jobs.example.test/role", "", true, false));
 
         jdbc.sql("UPDATE company_referral_requests SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE id = ?")
                 .param(request.id()).update();
@@ -203,13 +219,14 @@ class CompanyReferralRequestFlowTests {
 
                 for (int requestNumber = 1; requestNumber <= 5; requestNumber++) {
                         requests.create(authentication(seekerEmail, "Budget Seeker"),
-                                        new CreateRequest(companyId, "Role " + requestNumber, "", "", true, false, false));
+                                        new CreateRequest(companyId, "Role " + requestNumber,
+                                                "https://jobs.example.test/role", "", true, false));
                 }
 
                 assertEquals(0, budget.allowance(seekerId, Instant.now()).left());
                 ResponseStatusException exception = assertThrows(ResponseStatusException.class,
                                 () -> requests.create(authentication(seekerEmail, "Budget Seeker"),
-                                                new CreateRequest(companyId, "Role 6", "", "", true, false, false)));
+                                                new CreateRequest(companyId, "Role 6", "https://jobs.example.test/role", "", true, false)));
                 assertEquals(HttpStatus.CONFLICT.value(), exception.getStatusCode().value());
         }
 
@@ -227,7 +244,7 @@ class CompanyReferralRequestFlowTests {
                     insertProfile(insertUser("Credit Seeker " + referralNumber, seekerEmail), null);
                     long seekerId = jdbc.sql("SELECT id FROM users WHERE email = ?").param(seekerEmail).query(Long.class).single();
                     SeekerRequest request = requests.create(authentication(seekerEmail, "Credit Seeker"),
-                            new CreateRequest(companyId, "Role " + referralNumber, "", "", true, false, false));
+                            new CreateRequest(companyId, "Role " + referralNumber, "https://jobs.example.test/role", "", true, false));
                     requests.accept(authentication(referrerEmail, "Credit Referrer"), request.id(), new AcceptRequest(false, false));
                     long responseId = responseIdFor(requests.inbox(authentication(referrerEmail, "Credit Referrer")), request.id());
                     requests.markSubmitted(authentication(referrerEmail, "Credit Referrer"), request.id());
@@ -259,7 +276,7 @@ class CompanyReferralRequestFlowTests {
                 insertReferrer(targetReferrerId, targetCompanyId, "target-work-" + suffix + "@company.test");
 
                 SeekerRequest earnedFor = requests.create(authentication(seekerEmail, "Refund Seeker"),
-                        new CreateRequest(referralCompanyId, "Referral Role", "", "", true, false, false));
+                        new CreateRequest(referralCompanyId, "Referral Role", "https://jobs.example.test/role", "", true, false));
                 requests.accept(authentication(referrerEmail, "Refund Referrer"), earnedFor.id(), new AcceptRequest(false, false));
                 long earnedResponseId = responseIdFor(requests.inbox(authentication(referrerEmail, "Refund Referrer")), earnedFor.id());
                 requests.markSubmitted(authentication(referrerEmail, "Refund Referrer"), earnedFor.id());
@@ -267,11 +284,11 @@ class CompanyReferralRequestFlowTests {
 
                 for (int requestNumber = 1; requestNumber <= 5; requestNumber++) {
                     requests.create(authentication(referrerEmail, "Refund Referrer"),
-                            new CreateRequest(targetCompanyId, "Target Role " + requestNumber, "", "", true, false, false));
+                            new CreateRequest(targetCompanyId, "Target Role " + requestNumber, "https://jobs.example.test/role", "", true, false));
                 }
                 assertEquals(1, budget.allowance(referrerId, Instant.now()).bonusAvailable());
                 SeekerRequest bonusRequest = requests.create(authentication(referrerEmail, "Refund Referrer"),
-                        new CreateRequest(targetCompanyId, "Target Role Bonus", "", "", true, false, false));
+                        new CreateRequest(targetCompanyId, "Target Role Bonus", "https://jobs.example.test/role", "", true, false));
                 assertEquals(0, budget.allowance(referrerId, Instant.now()).left());
 
                 jdbc.sql("UPDATE company_referral_requests SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE id = ?")
@@ -296,7 +313,7 @@ class CompanyReferralRequestFlowTests {
         insertProfile(referrerId, null);
         insertReferrer(referrerId, companyId, "reminder-work-" + suffix + "@company.test");
         SeekerRequest request = requests.create(authentication(seekerEmail, "Reminder Seeker"),
-                new CreateRequest(companyId, "Platform Engineer", "", "", true, false, false));
+                new CreateRequest(companyId, "Platform Engineer", "https://jobs.example.test/role", "", true, false));
         requests.accept(authentication(referrerEmail, "Reminder Referrer"), request.id(), new AcceptRequest(false, false));
         entityManager.flush();
         jdbc.sql("UPDATE referral_request_responses SET accepted_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 DAY) WHERE request_id = ?")
@@ -328,9 +345,9 @@ class CompanyReferralRequestFlowTests {
         jdbc.sql("UPDATE referrer_profiles SET referral_limit = 1 WHERE user_id = ?").param(referrerId).update();
 
         SeekerRequest first = requests.create(authentication(firstSeekerEmail, "Capacity Seeker 1"),
-                new CreateRequest(companyId, "First Role", "", "", true, false, false));
+                new CreateRequest(companyId, "First Role", "https://jobs.example.test/role", "", true, false));
         SeekerRequest second = requests.create(authentication(secondSeekerEmail, "Capacity Seeker 2"),
-                new CreateRequest(companyId, "Second Role", "", "", true, false, false));
+                new CreateRequest(companyId, "Second Role", "https://jobs.example.test/role", "", true, false));
         requests.accept(authentication(referrerEmail, "Capacity Referrer"), first.id(), new AcceptRequest(false, false));
 
         ResponseStatusException full = assertThrows(ResponseStatusException.class,
@@ -358,9 +375,9 @@ class CompanyReferralRequestFlowTests {
             jdbc.sql("UPDATE referrer_profiles SET referral_limit = 1 WHERE user_id = ?").param(referrerId).update();
 
             SeekerRequest first = requests.create(authentication(firstSeekerEmail, "Timeout Seeker 1"),
-                    new CreateRequest(companyId, "First Timeout Role", "", "", true, false, false));
+                    new CreateRequest(companyId, "First Timeout Role", "https://jobs.example.test/role", "", true, false));
             SeekerRequest second = requests.create(authentication(secondSeekerEmail, "Timeout Seeker 2"),
-                    new CreateRequest(companyId, "Second Timeout Role", "", "", true, false, false));
+                    new CreateRequest(companyId, "Second Timeout Role", "https://jobs.example.test/role", "", true, false));
             requests.accept(authentication(referrerEmail, "Timeout Referrer"), first.id(), new AcceptRequest(false, false));
 
             jdbc.sql("UPDATE referral_request_responses SET accepted_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 11 DAY) WHERE request_id = ?")
