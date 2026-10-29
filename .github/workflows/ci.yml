@@ -27,7 +27,6 @@ jobs:
       DB_URL: jdbc:mysql://127.0.0.1:3307/referral_portal?allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: referral
       DB_PASSWORD: referral_local
-      SEED_DEMO: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
