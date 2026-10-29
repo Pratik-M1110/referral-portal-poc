@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, Send } from 'lucide-react'
+import { Copy, Inbox, Send } from 'lucide-react'
 import { useState } from 'react'
 import { api, type ReferralRequestInboxItem, type SeekerReferralRequest } from '../api'
 import { Avatar, Button, Card, Chip, EmptyState, ErrorNote, PageTitle, Spinner } from '../ui'
@@ -92,7 +92,37 @@ function ReferrerInboxCard({ item, act, pending }: {
 }) {
   const [shareEmail, setShareEmail] = useState(false)
   const [sharePhone, setSharePhone] = useState(false)
+  const [packetPreviewOpen, setPacketPreviewOpen] = useState(false)
+  const [packetCopyMessage, setPacketCopyMessage] = useState('')
   const status = label(item.status)
+  const referralPacket = [
+    'Referral details',
+    `Company: ${item.companyName}`,
+    `Role: ${item.roleTitle}`,
+    item.jobUrl ? `Job posting: ${item.jobUrl}` : undefined,
+    '',
+    'Candidate profile',
+    `Name: ${item.seekerName}`,
+    item.experienceLevel ? `Experience: ${item.experienceLevel}` : undefined,
+    item.pitch ? `Pitch: ${item.pitch}` : undefined,
+    item.skills.length > 0 ? `Skills: ${item.skills.join(', ')}` : undefined,
+    item.rolesWanted.length > 0 ? `Interested in: ${item.rolesWanted.join(', ')}` : undefined,
+    item.githubUrl ? `GitHub: ${item.githubUrl}` : undefined,
+    item.linkedinUrl ? `LinkedIn: ${item.linkedinUrl}` : undefined,
+    item.seekerEmail ? `Email: ${item.seekerEmail}` : undefined,
+    item.seekerPhone ? `Phone: ${item.seekerPhone}` : undefined,
+    item.seekerNote ? `Note: ${item.seekerNote}` : undefined,
+  ].filter((line): line is string => line !== undefined).join('\n')
+
+  const copyReferralPacket = async () => {
+    try {
+      await navigator.clipboard.writeText(referralPacket)
+      setPacketCopyMessage('Referral packet copied.')
+    } catch {
+      setPacketCopyMessage('Could not access the clipboard. Select and copy the preview text.')
+    }
+  }
+
   return (
     <Card className="space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -145,6 +175,26 @@ function ReferrerInboxCard({ item, act, pending }: {
             <div className="space-y-1 text-sm">
               {item.seekerEmail && <p>Email: <a className="text-gblue underline" href={`mailto:${item.seekerEmail}`}>{item.seekerEmail}</a></p>}
               {item.seekerPhone && <p>Phone: <a className="text-gblue underline" href={`tel:${item.seekerPhone}`}>{item.seekerPhone}</a></p>}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setPacketPreviewOpen((open) => !open)
+              setPacketCopyMessage('')
+            }}
+          >
+            {packetPreviewOpen ? 'Hide referral packet' : 'Preview referral packet'}
+          </Button>
+          {packetPreviewOpen && (
+            <div className="space-y-2 border-l-2 border-gblue pl-3">
+              <p className="text-xs text-muted">Review this summary before pasting it into your employer’s referral system.</p>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words font-sans text-xs">{referralPacket}</pre>
+              {packetCopyMessage && <p role="status" aria-live="polite" className="text-xs text-muted">{packetCopyMessage}</p>}
+              <Button className="w-full" onClick={() => void copyReferralPacket()}>
+                <span className="inline-flex items-center gap-2"><Copy size={16} />Copy referral packet</span>
+              </Button>
             </div>
           )}
           <Button disabled={pending} className="w-full" onClick={() => act({ kind: 'submitted', requestId: item.requestId })}>Mark referral submitted</Button>

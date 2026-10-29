@@ -242,8 +242,8 @@ requests use a separate request/response lifecycle.
 
 **Create (`POST /api/referral-requests`):**
 - Any signed-in seeker with a profile can request a referral; work-email verification is not
-  required. The seeker chooses a company and free-form role title, provides an HTTPS job URL,
-  may add a note, and explicitly consents to sharing their profile summary.
+  required. The seeker chooses a company and free-form role title, may add an HTTPS job URL
+  and note, and explicitly consents to sharing their profile summary.
 - The company must have at least one verified, opted-in referrer. A seeker cannot request help
   from their own verified company or submit another active request for the same company/role.
 - One company/role request counts once, regardless of how many employee responses it creates.
@@ -308,7 +308,9 @@ The Referrals screen shows both requests sent by the current seeker and requests
 the current referrer. The seeker sees pending/declined counts without the identities of
 employees who declined; after acceptance they see participating referrers and only the contact
 fields those referrers consented to share. Referrers see their invited requests, consent choices,
-submission actions, and reminder count. The frontend polls request status every 10 seconds.
+submission actions, and reminder count. Accepted referrers can preview and copy a referral
+packet from the consent-filtered inbox details; copying does not submit it to the employer. The
+frontend polls request status every 10 seconds.
 
 The existing `GET /api/referrals` endpoint still lists formal referral rows. A formal row is
 created when an accepted employee marks a request submitted; confirmation by the seeker is
@@ -369,7 +371,8 @@ yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bu
 | Candidates list, Candidate card | ❌ Not implemented |
 | Refer / Save / Pass actions | ❌ Not implemented |
 | Seeker/referrer referral request inbox and status | ✅ Implemented |
-| "Referrals made", copy packet, status update | ❌ Not implemented |
+| Copy referral packet for an accepted request | ✅ Implemented; copies the visible, consent-filtered details |
+| Separate "Referrals made" dashboard and manual status updates | ❌ Not implemented |
 | Block / report | ⚠️ Block is enforced in chat/requests; no report-submission UI found |
 | Legacy meeting credit ledger | ⚠️ Unused; referral-request credits use separate expiring records |
 | Message retention job (30-90 days) | ❌ Not implemented |

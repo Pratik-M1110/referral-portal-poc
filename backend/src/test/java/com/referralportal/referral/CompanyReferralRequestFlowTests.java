@@ -1,6 +1,7 @@
 package com.referralportal.referral;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -133,10 +134,13 @@ class CompanyReferralRequestFlowTests {
     }
 
         @Test
-        void createRequestRequiresHttpsJobUrl() {
-                CreateRequest request = new CreateRequest(1L, "Backend Engineer", "", "", true, false);
+        void jobUrlIsOptionalButMustUseHttpsWhenProvided() {
+                CreateRequest withoutUrl = new CreateRequest(1L, "Backend Engineer", "", "", true, false);
+                CreateRequest insecureUrl = new CreateRequest(1L, "Backend Engineer", "http://jobs.example.test/role", "", true, false);
 
-                assertTrue(validator.validate(request).stream()
+                assertFalse(validator.validate(withoutUrl).stream()
+                                .anyMatch(violation -> "jobUrl".equals(violation.getPropertyPath().toString())));
+                assertTrue(validator.validate(insecureUrl).stream()
                                 .anyMatch(violation -> "jobUrl".equals(violation.getPropertyPath().toString())));
         }
 
