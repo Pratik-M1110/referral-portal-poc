@@ -1,14 +1,14 @@
-# Referral Portal — How the app works (current implementation)
+# Referral Portal — Current MVP behavior
 
 This document explains, flow by flow, what is actually built today: which API is called,
 which service/repository handles it, and which database tables/columns are read or written.
-It reflects the code as of 24 October 2026 (post Spring Data JPA migration), not the full
-product brief — gaps are called out explicitly at the end of each section.
+It reflects the code as of 28 October 2026 (post Spring Data JPA migration). Capabilities not
+yet available to end users are called out explicitly at the end of each section.
 
 Stack: Spring Boot (Java) + MySQL (Flyway migrations through `V3__company_referral_requests.sql`) on the backend,
 React + Vite on the frontend. Auth is session-based (Spring Security OAuth2 Client), not JWT.
 
-The shared Aiven MySQL instance is for development/demo use. Developers may instead use the
+The shared Aiven MySQL instance is for development use. Developers may instead use the
 isolated Docker Compose MySQL database. Production will use a different database server;
 connection details belong in the ignored root `.env`, never in this document.
 
@@ -89,7 +89,7 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
 
 **Tables touched:** `users` (insert/select), `badges` (insert on first login only).
 
-**Gaps vs. brief:** LinkedIn sign-in is not implemented (Google/GitHub only, matches MVP-1 scope).
+**MVP boundary:** LinkedIn sign-in is not implemented; Google and GitHub are supported.
 
 ---
 
@@ -296,7 +296,7 @@ requests use a separate request/response lifecycle.
 
 **Tables touched:** `badges` (read-only).
 
-**Gap vs. brief:** there is no scan endpoint implemented (`POST /api/scan`), so the `scans`
+**MVP boundary:** there is no scan endpoint implemented (`POST /api/scan`), so the `scans`
 table is defined in the schema but nothing inserts into it. A referrer currently has no way
 to scan someone else's badge to open their profile.
 
@@ -377,4 +377,4 @@ yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bu
 | Legacy meeting credit ledger | ⚠️ Unused; referral-request credits use separate expiring records |
 | Message retention job (30-90 days) | ❌ Not implemented |
 | Admin panel (stats, companies, sponsors, report queue, export) | ❌ Not implemented |
-| LinkedIn sign-in | ❌ Not implemented (not required for MVP-1) |
+| LinkedIn sign-in | ❌ Not currently supported; Google and GitHub sign-in are available |

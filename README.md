@@ -1,6 +1,6 @@
 # Referral Portal
 
-A local-development proof of concept for discovering companies, requesting referrals, and connecting with referrers.
+An MVP that helps job seekers request company referrals and helps employees manage those requests.
 
 This guide covers a fresh Windows 10/11 setup using PowerShell and the shared Aiven development database. Docker Compose MySQL is available as an isolated local alternative. For additional setup notes, see [docs/SETUP-ON-NEW-SYSTEM.md](docs/SETUP-ON-NEW-SYSTEM.md).
 
@@ -55,7 +55,7 @@ Set-Location referral-portal-poc
 Copy-Item .env.example .env
 ```
 
-The normal team development setup uses the shared Aiven development database. In the ignored root `.env`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` to the development values provided privately by the project maintainer. The checked-in `.env.example` contains local Docker defaults, not Aiven credentials. Never commit `.env` or put credentials in chat, issues, or documentation. The app does not automatically seed demo companies, users, or roles. Production will use a different database server, not the shared development database.
+The normal team development setup uses the shared Aiven development database. In the ignored root `.env`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` to the development values provided privately by the project maintainer. The checked-in `.env.example` contains local Docker defaults, not Aiven credentials. Never commit `.env` or put credentials in chat, issues, or documentation. The app does not automatically seed sample companies, users, or roles. Production will use a different database server, not the shared development database.
 
 To use an isolated local database instead, keep the local database values from `.env.example` and start Docker Compose MySQL in the next section. Local Docker data is separate from Aiven and is persisted in a Docker volume.
 

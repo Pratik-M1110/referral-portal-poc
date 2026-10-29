@@ -27,17 +27,17 @@ flowchart LR
     subgraph dev["Development"]
         vite["Vite dev server<br/>:5173"]
         boot["Spring Boot<br/>:8080"]
-        aiven[("Aiven MySQL<br/>shared development/demo")]
+        aiven[("Aiven MySQL<br/>shared development")]
         docker[("Docker Compose MySQL<br/>isolated local option<br/>host :3307 → container :3306")]
         vite -->|"Proxies /api, /logout, /actuator"| boot
         boot --> aiven
         boot -. "alternative local database" .-> docker
     end
 
-    subgraph deploy["Packaged runtime"]
+    subgraph deploy["Planned GCP production runtime"]
         image["Multi-stage Docker build<br/>builds React assets and Spring Boot JAR"]
-        one["Spring Boot serves API + static SPA<br/>port 8080"]
-        externaldb[("Different production database server")]
+        one["Cloud Run service<br/>Spring Boot API + static SPA"]
+        externaldb[("Cloud SQL MySQL<br/>separate production database")]
         image --> one
         one --> externaldb
     end
@@ -45,9 +45,10 @@ flowchart LR
 
 In development, Vite serves the frontend separately and proxies API calls to Spring Boot.
 The backend normally connects to the shared Aiven development database; Docker Compose
-MySQL is an isolated local alternative. The production Dockerfile builds the frontend into
-Spring Boot's static resources so one application serves both the SPA and API, with a
-database server different from the shared development instance. Database URLs and
+MySQL is an isolated local alternative. The planned GCP production deployment uses Cloud
+Run for the packaged app and Cloud SQL for a database isolated from development. The
+production Dockerfile builds the frontend into Spring Boot's static resources so one
+application serves both the SPA and API. Database URLs and
 credentials, OAuth client credentials, and SMTP settings are environment configuration,
 not source-controlled values.
 

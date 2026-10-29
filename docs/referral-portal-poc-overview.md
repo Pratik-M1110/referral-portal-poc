@@ -1,17 +1,17 @@
-# Referral Portal POC
+# Referral Portal MVP
 
-**Project:** Referral Portal for DevFest Pune  
-**Event date:** 13 December 2026  
-**Document date:** 24 October 2026  
-**Purpose:** Explain the proof of concept (POC), what a user can try, how its data is stored, and what still belongs to the larger product.
+**Product:** Referral Portal  
+**Initial launch:** DevFest Pune, 13 December 2026  
+**Document date:** 28 October 2026  
+**Purpose:** Describe the current MVP, its end-user workflows, data model, and planned capabilities.
 
 > **Status key**  
-> **IN POC** = implemented in the current source and suitable to demonstrate, subject to the deployed commit.  
+> **IN MVP** = implemented in the current source; availability depends on the deployed release.  
 > **PARTIAL** = only part of the workflow is implemented.  
-> **NOT IN POC** = planned for the full product, but not implemented in this POC.  
-> **BRANCH ONLY** = code exists on a feature branch but is not necessarily in the live deployment.
+> **PLANNED** = not yet implemented.  
+> **BRANCH ONLY** = code exists on a feature branch, but is not yet in the deployed release.
 
-The live Render service deploys a Git branch. A feature branch is not live just because it was pushed. Confirm the deployed commit in Render before promising a feature in a demo.
+The current development service deploys from Git. A feature branch is not available to end users just because it was pushed. Confirm the deployed release before announcing a capability.
 
 ## 1. The idea
 
@@ -22,44 +22,44 @@ Referral Portal is a mobile-first app where job seekers request help from opted-
 - A **referral request** is sent to opted-in employees at one company; multiple employees may accept.
 - A **referral** is a tracked internal handoff. The portal does not submit a candidate to a company's hiring system.
 
-The POC demonstrates part of this loop. It is not a job board, recruitment platform, or completed event-day system.
+The MVP supports the referral handoff between job seekers and opted-in employees. It is not a job board or recruitment platform, and it does not submit candidates into employers' hiring systems.
 
-## 2. What can be demonstrated
+## 2. Current MVP capabilities
 
-| Capability | POC status | Notes |
+| Capability | MVP status | Notes |
 |---|---|---|
-| Google and GitHub sign-in | IN POC | OAuth creates a user the first time; later sign-ins reuse the account by email. |
-| Seeker profile | IN POC | Experience, skills, roles wanted, pitch, profile links, and optional phone. Resume upload is not included. |
-| Work-email verification | IN POC | Six-digit emailed code; unlocks referrer settings. It is not required to sign in or save a seeker profile. |
-| Company directory | IN POC | Companies with at least one verified employee opted in to referral requests; employee identities are not listed. |
-| Wishlist | IN POC | A seeker can save up to five companies. |
-| Company referral requests | IN POC | A seeker requests one company/role; every opted-in employee is invited, and several can accept. |
-| Referral submission tracking | IN POC | Referrers mark internal submission; seekers confirm. The app does not submit to the employer's system. |
-| Referral request credits | IN POC | Five base requests per rolling 30 days; capped earned credits can raise the allowance. |
-| Referral reminders | IN POC | Accepted referrers receive up to three email reminders at two-day intervals. |
-| Light/dark theme | IN POC | Theme choice persists in the current browser. |
+| Google and GitHub sign-in | IN MVP | OAuth creates a user the first time; later sign-ins reuse the account by email. |
+| Seeker profile | IN MVP | Experience, skills, roles wanted, pitch, profile links, and optional phone. Resume upload is planned. |
+| Work-email verification | IN MVP | Six-digit emailed code; unlocks referrer settings. It is not required to sign in or save a seeker profile. |
+| Company directory | IN MVP | Companies with at least one verified employee opted in to referral requests; employee identities are not listed. |
+| Wishlist | IN MVP | A seeker can save up to five companies. |
+| Company referral requests | IN MVP | A seeker requests one company/role; every opted-in employee is invited, and several can accept. |
+| Referral submission tracking | IN MVP | Referrers mark internal submission; seekers confirm. The app does not submit to the employer's system. |
+| Referral request credits | IN MVP | Five base requests per rolling 30 days; capped earned credits can raise the allowance. |
+| Referral reminders | IN MVP | Accepted referrers receive up to three email reminders at two-day intervals. |
+| Light/dark theme | IN MVP | Theme choice persists in the current browser. |
 | Legacy meeting/chat APIs | RETAINED, HIDDEN IN UI | Tables, endpoints, and old data remain for possible future use; the frontend no longer starts meetings or chats. |
-| QR badge | IN POC | Contains a random token, not the user's database ID. |
-| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and may provide a job link with each request. |
-| Copy referral packet | IN POC | Accepted referrers can preview/copy the consent-filtered details; submission to the employer remains manual. |
-| Account deletion | IN POC | Deletes a user's account and associated data after an explicit confirmation. It is permanent. |
-| Profile save without work email | IN POC | Work-email verification is optional for seeker features and only required to become a referrer. |
-| Database Explorer learning page | IN POC | `frontend/public/database-explorer.html` is tracked and served as a static page. |
+| QR badge | IN MVP | Contains a random token, not the user's database ID. |
+| Resume upload | PLANNED | Reserved storage exists; upload and authenticated download are not implemented. |
+| Copy referral packet | IN MVP | Accepted referrers can preview/copy consent-filtered details; employer submission remains manual. |
+| Account deletion | IN MVP | Permanently deletes a user's account and associated data after explicit confirmation. |
+| Profile save without work email | IN MVP | Work-email verification is optional for seeker features and only required to become a referrer. |
+| Database Explorer | IN MVP | `frontend/public/database-explorer.html` is a supporting guide to the schema and user journeys. |
 
-## 3. What's not in this POC
+## 3. Planned capabilities and boundaries
 
-These are features for the larger product, not things a tester should assume are available:
+These capabilities are not currently available to end users:
 
 - Camera-based QR scanning, scan history, and offline scan synchronization.
 - Candidate search/cards and the referrer's Save, Pass, and Refer actions.
-- Referrals-made dashboard and manual status updates. Accepted referrers can copy the packet from an active request.
+- Referrals-made history and manual post-submission status updates. Accepted referrers can copy a packet from an active request.
 - Resume upload and private download.
 - Enforcement of the hide-from-my-company privacy option in search and scans.
 - Creating reports or blocks in the user interface. Existing block records are checked in conversation rules.
 - A separate notification center. Referral requests appear in the Referrals inbox, and invite/reminder emails use the configured mail provider.
 - Automated message-retention/purge job.
 - Admin console, sponsor dashboard, live event statistics, and bulk badge export.
-- PWA installation/offline support, full 1,000-person load testing, and end-to-end phone testing for all 14 planned screens.
+- PWA installation/offline support, load testing for the target of 1,500 total users (peak concurrency still needs to be defined), and end-to-end phone testing.
 - Meeting-request credits. The legacy ledger remains unused; company referral requests use their own expiring credit records.
 
 ## 4. How the application is organized
@@ -74,7 +74,7 @@ This is one Git repository with two applications:
 | Schema changes | Flyway SQL migrations | Creates and updates tables when the backend starts. |
 | Shared development database | Aiven MySQL | Shared development data; connection details are supplied privately and kept in the ignored root `.env`. |
 | Isolated local database | Docker Compose | Optional MySQL on port 3307, separate from Aiven and persisted in a local Docker volume. |
-| Production database | Separate database server | Production will use a different database server from shared development Aiven. |
+| Production database | Planned Google Cloud SQL | A separate production database; provisioning and deployment are not yet complete. |
 | Hosted app | Render Docker Web Service | Builds and runs the combined React + Spring Boot image. |
 
 The backend uses an explicit **controller → service → repository** layout, with dedicated `dto` and `entity` packages alongside it:
@@ -167,40 +167,40 @@ The user confirms by typing `DELETE`. Deletion is permanent and runs in a transa
 
 ## 7. Database table guide
 
-The schema has **20 tables**, grouped by what they represent:
+The schema has **20 application tables**, grouped by what they represent:
 
-| Table | Plain-language purpose | POC status |
+| Table | Plain-language purpose | MVP status |
 |---|---|---|
-| `users` | Sign-in identity; one row per person | IN POC |
-| `profiles` | Seeker profile | IN POC |
-| `referrer_profiles` | Verified employee/referrer settings | IN POC |
-| `companies` | Company directory | IN POC |
-| `open_roles` | Company roles shown in the directory | IN POC; mainly seeded |
-| `email_otps` | Hashed, expiring work-email verification codes | IN POC |
-| `badges` | Random QR token for each person | IN POC |
-| `wishlists` | Seeker-to-company saved-interest links | IN POC |
-| `company_referral_requests` | One seeker request for a company and role | IN POC |
-| `referral_request_responses` | Each invited employee's response and submission lifecycle | IN POC |
-| `referral_request_credits` | Earned, consumed, and expiring request credits | IN POC |
+| `users` | Sign-in identity; one row per person | IN MVP |
+| `profiles` | Seeker profile | IN MVP |
+| `referrer_profiles` | Verified employee/referrer settings | IN MVP |
+| `companies` | Company directory | IN MVP |
+| `open_roles` | Optional company roles; requests use a seeker-entered role title | Available; not automatically seeded |
+| `email_otps` | Hashed, expiring work-email verification codes | IN MVP |
+| `badges` | Random QR token for each person | IN MVP |
+| `wishlists` | Seeker-to-company saved-interest links | IN MVP |
+| `company_referral_requests` | One seeker request for a company and role | IN MVP |
+| `referral_request_responses` | Each invited employee's response and submission lifecycle | IN MVP |
+| `referral_request_credits` | Earned, consumed, and expiring request credits | IN MVP |
 | `conversations` | Legacy meeting request and chat lifecycle/counter | Retained; UI hidden |
 | `messages` | Legacy chat text | Retained; UI hidden |
-| `referrals` | Referral submission and status history | IN POC |
-| `reviews` | Referrer Save/Pass and private notes | NOT IN POC |
-| `scans` | QR scan history | NOT IN POC |
+| `referrals` | Referral submission and status history | IN MVP |
+| `reviews` | Referrer Save/Pass and private notes | PLANNED |
+| `scans` | QR scan history | PLANNED |
 | `reports_blocks` | Report/block records | PARTIAL; existing blocks are checked |
 | `credit_ledger` | Request credits | PARTIAL; currently contributes zero |
-| `notifications` | Referral invitation and status notifications | IN POC |
-| `resume_files` | Private resume file data | NOT IN POC |
+| `notifications` | Referral invitation and status notifications | IN MVP |
+| `resume_files` | Reserved private resume storage | PLANNED |
 
-## 8. Initial data and test status
+## 8. Initial data and quality status
 
-- The application does not automatically seed demo companies, users, roles, conversations, or referrals. A company is created when an employee verifies a work email; no sample referrers are added.
+- The application does not automatically seed sample companies, users, roles, conversations, or referrals. A company is created when an employee verifies a work email; no sample referrers are added.
 - The shared Aiven database may still contain existing records until they are deliberately removed; removing the seeder does not delete existing database rows.
 - Backend tests cover startup, work-email verification, account deletion, referral requests, contact consent, expiry/refunds, reminders, and API route compatibility. The frontend has lint/build checks.
 - CI checks the backend and frontend builds when changes are pushed to GitHub.
 - A passing test/build is not a substitute for testing sign-in and email delivery on the actual hosted service.
 
-## 9. Important POC limits and risks
+## 9. MVP limits and operational risks
 
 - The app tracks that an employee submitted a referral but cannot submit a candidate into an employer's internal hiring system.
 - Resume upload, reports, message retention, camera scanning, and admin tools are not implemented.
@@ -208,7 +208,7 @@ The schema has **20 tables**, grouped by what they represent:
 - Account deletion is permanent; test it with a disposable account, not a primary account.
 - Email codes depend on working Brevo SMTP settings and deliverability.
 - Render free services can sleep when idle; the shared Aiven development database may have its own availability limits. This setup is not a production reliability guarantee.
-- Before a public event launch, confirm which commit is deployed and test the full flow on a phone.
+- Before the initial public launch, confirm which release is deployed and test the full flow on a phone.
 
 ## 10. One-minute explanation
 
@@ -216,4 +216,4 @@ The schema has **20 tables**, grouped by what they represent:
 
 ---
 
-**Sharing note:** This overview explains the POC source and its limits; check the Render deployment commit before presenting branch-only changes as live.
+**Release note:** This overview describes the current MVP source; verify the deployed release before announcing a capability to end users.
