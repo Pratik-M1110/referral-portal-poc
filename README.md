@@ -68,7 +68,7 @@ http://localhost:8080/login/oauth2/code/github
 
 ## Referral workflow
 
-Anyone with a seeker profile can request a referral; work-email verification is not required to seek help. The Companies page shows companies with at least one verified employee who has opted in to referral requests, without listing employee identities. A seeker chooses a role title, provides the job link, and may add a note. Their profile summary and sign-in email are shared with invited employees according to the displayed consent rules; sign-in email is visible only to employees who accept.
+Anyone with a seeker profile can request a referral; work-email verification is not required to seek help. The Companies page shows companies with at least one verified employee who has opted in to referral requests, without listing employee identities. A seeker chooses a role title, may add a job link, and may add a note. Their profile summary and sign-in email are shared with invited employees according to the displayed consent rules; sign-in email is visible only to employees who accept.
 
 One request covers one company and role, even when multiple employees accept. Every opted-in employee at that company receives an in-app request and an email. Employees can accept or decline; accepted employees can share their own contact fields by consent, then mark the referral submitted after using their company's internal process. A seeker confirms submission in the app. Acceptance does not guarantee an opening, completed referral, or interview.
 

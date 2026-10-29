@@ -68,11 +68,10 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
             />
           </div>
           <div>
-            <label className="text-sm font-semibold" htmlFor="job-url">Job link</label>
+            <label className="text-sm font-semibold" htmlFor="job-url">Job link <span className="font-normal text-muted">(optional)</span></label>
             <input
               id="job-url"
               type="url"
-              required
               maxLength={500}
               value={jobUrl}
               onChange={(event) => setJobUrl(event.target.value)}

@@ -40,7 +40,8 @@ The POC demonstrates part of this loop. It is not a job board, recruitment platf
 | Light/dark theme | IN POC | Theme choice persists in the current browser. |
 | Legacy meeting/chat APIs | RETAINED, HIDDEN IN UI | Tables, endpoints, and old data remain for possible future use; the frontend no longer starts meetings or chats. |
 | QR badge | IN POC | Contains a random token, not the user's database ID. |
-| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and provide a job link with each request. |
+| Resume upload | NOT IN POC | Reserved for future work; seekers share existing profile fields and may provide a job link with each request. |
+| Copy referral packet | IN POC | Accepted referrers can preview/copy the consent-filtered details; submission to the employer remains manual. |
 | Account deletion | IN POC | Deletes a user's account and associated data after an explicit confirmation. It is permanent. |
 | Profile save without work email | IN POC | Work-email verification is optional for seeker features and only required to become a referrer. |
 | Database Explorer learning page | IN POC | `frontend/public/database-explorer.html` is tracked and served as a static page. |
@@ -51,7 +52,7 @@ These are features for the larger product, not things a tester should assume are
 
 - Camera-based QR scanning, scan history, and offline scan synchronization.
 - Candidate search/cards and the referrer's Save, Pass, and Refer actions.
-- Referrals-made dashboard, status updates, and copying a referral packet.
+- Referrals-made dashboard and manual status updates. Accepted referrers can copy the packet from an active request.
 - Resume upload and private download.
 - Enforcement of the hide-from-my-company privacy option in search and scans.
 - Creating reports or blocks in the user interface. Existing block records are checked in conversation rules.
@@ -144,7 +145,7 @@ The wishlist's composite key (`seeker_id`, `company_id`) prevents duplicate save
 
 ### E. Request a company referral
 
-1. Any seeker with a profile selects a company and free-form role title and provides an HTTPS job URL; a note is optional. Work-email verification is not required to seek a referral.
+1. Any seeker with a profile selects a company and free-form role title; an HTTPS job URL and note are optional. Work-email verification is not required to seek a referral.
 2. The seeker explicitly consents to sharing a profile summary. Their sign-in email is shared only with employees who accept; sharing an optional phone remains a separate choice.
 3. The backend validates the company, excludes the seeker's own verified company, enforces duplicate-request and rolling allowance rules, then creates one `company_referral_requests` row and one pending `referral_request_responses` row for every opted-in employee.
 4. Invitees receive an in-app inbox item and a work-email notification. Role preferences do not filter invitations. Multiple employees may accept; each acceptance independently uses active-assignment capacity and collects its contact-sharing choices.

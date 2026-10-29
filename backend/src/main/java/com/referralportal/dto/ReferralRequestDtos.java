@@ -13,7 +13,7 @@ public final class ReferralRequestDtos {
     public record CreateRequest(
             @NotNull Long companyId,
             @NotBlank @Size(max = 160) String roleTitle,
-            @NotBlank @Size(max = 500) @Pattern(regexp = "^https://\\S+$", message = "Use a valid https:// job link") String jobUrl,
+            @Size(max = 500) @Pattern(regexp = "^$|^https://\\S+$", message = "Use a valid https:// job link") String jobUrl,
             @Size(max = 1000) String seekerNote,
             @NotNull Boolean shareProfile,
             @NotNull Boolean shareSeekerPhone) {}
