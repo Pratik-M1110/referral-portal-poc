@@ -209,6 +209,7 @@ function ReferrerInboxCard({ item, act, pending }: {
 export default function ReferralsPage() {
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<'sent' | 'inbox'>('sent')
+  const [activeInboxView, setActiveInboxView] = useState<'active' | 'history'>('active')
   const seekerRequests = useQuery({
     queryKey: ['seeker-referral-requests'],
     queryFn: () => api<SeekerReferralRequest[]>('/api/referral-requests'),
@@ -245,7 +246,12 @@ export default function ReferralsPage() {
   if (seekerRequests.isError || inbox.isError || !seekerRequests.data || !inbox.data) {
     return <ErrorNote message="Could not load referral requests." />
   }
-  const pendingInboxCount = inbox.data.filter((item) => item.status === 'pending').length
+  const activeInboxItems = inbox.data.filter((item) =>
+    item.status === 'pending' || item.status === 'accepted' || item.status === 'submitted',
+  )
+  const historyInboxItems = inbox.data.filter((item) =>
+    item.status === 'declined' || item.status === 'expired' || item.status === 'confirmed' || item.status === 'closed',
+  )
   return (
     <div>
       <PageTitle title="Referrals" subtitle="Track requests you sent and requests you can help with." />
@@ -275,7 +281,7 @@ export default function ReferralsPage() {
         >
           <Inbox size={16} />
           <span>Requests for me</span>
-          <span className="text-xs tabular-nums">{pendingInboxCount}</span>
+          <span className="text-xs tabular-nums">{activeInboxItems.length}</span>
         </button>
       </div>
       <section id="sent-requests-panel" role="tabpanel" aria-labelledby="sent-requests-tab" hidden={activeTab !== 'sent'} className="space-y-3">
@@ -284,9 +290,42 @@ export default function ReferralsPage() {
         ) : seekerRequests.data.map((request) => <SeekerRequestCard key={request.id} request={request} act={action.mutate} pending={action.isPending} />)}
       </section>
       <section id="received-requests-panel" role="tabpanel" aria-labelledby="received-requests-tab" hidden={activeTab !== 'inbox'} className="space-y-3">
-        {inbox.data.length === 0 ? (
-          <EmptyState title="No requests to review" text="When someone asks for referral help at your company, it will appear here." />
-        ) : inbox.data.map((item) => <ReferrerInboxCard key={item.responseId} item={item} act={action.mutate} pending={action.isPending} />)}
+        <div role="tablist" aria-label="Requests for me filter" className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-page p-1">
+          <button
+            id="active-referrer-requests-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeInboxView === 'active'}
+            aria-controls="active-referrer-requests-panel"
+            onClick={() => setActiveInboxView('active')}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition ${activeInboxView === 'active' ? 'bg-white text-ggreen shadow-sm' : 'text-muted hover:bg-white/60'}`}
+          >
+            <span>Active</span>
+            <span className="text-xs tabular-nums">{activeInboxItems.length}</span>
+          </button>
+          <button
+            id="referrer-history-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeInboxView === 'history'}
+            aria-controls="referrer-history-panel"
+            onClick={() => setActiveInboxView('history')}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition ${activeInboxView === 'history' ? 'bg-white text-ggreen shadow-sm' : 'text-muted hover:bg-white/60'}`}
+          >
+            <span>History</span>
+            <span className="text-xs tabular-nums">{historyInboxItems.length}</span>
+          </button>
+        </div>
+        <section id="active-referrer-requests-panel" role="tabpanel" aria-labelledby="active-referrer-requests-tab" hidden={activeInboxView !== 'active'} className="space-y-3">
+          {activeInboxItems.length === 0 ? (
+            <EmptyState title="No active requests" text="Pending requests and accepted referrals will appear here." />
+          ) : activeInboxItems.map((item) => <ReferrerInboxCard key={item.responseId} item={item} act={action.mutate} pending={action.isPending} />)}
+        </section>
+        <section id="referrer-history-panel" role="tabpanel" aria-labelledby="referrer-history-tab" hidden={activeInboxView !== 'history'} className="space-y-3">
+          {historyInboxItems.length === 0 ? (
+            <EmptyState title="No referral history yet" text="Declined, expired, confirmed, and closed referrals will appear here." />
+          ) : historyInboxItems.map((item) => <ReferrerInboxCard key={item.responseId} item={item} act={action.mutate} pending={action.isPending} />)}
+        </section>
       </section>
     </div>
   )

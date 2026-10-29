@@ -307,10 +307,12 @@ to scan someone else's badge to open their profile.
 The Referrals screen shows both requests sent by the current seeker and requests assigned to
 the current referrer. The seeker sees pending/declined counts without the identities of
 employees who declined; after acceptance they see participating referrers and only the contact
-fields those referrers consented to share. Referrers see their invited requests, consent choices,
-submission actions, and reminder count. Accepted referrers can preview and copy a referral
-packet from the consent-filtered inbox details; copying does not submit it to the employer. The
-frontend polls request status every 10 seconds.
+fields those referrers consented to share. Referrers have Active and History views: pending,
+accepted, and submitted responses remain active, while declined, expired, confirmed, and closed
+responses appear in history. The Requests for me badge counts active responses. Referrers see
+their request details, consent choices, submission actions, and reminder count. Accepted
+referrers can preview and copy a referral packet from consent-filtered inbox details; copying
+does not submit it to the employer. The frontend polls request status every 10 seconds.
 
 The existing `GET /api/referrals` endpoint still lists formal referral rows. A formal row is
 created when an accepted employee marks a request submitted; confirmation by the seeker is
