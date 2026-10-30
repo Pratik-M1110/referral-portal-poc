@@ -177,15 +177,15 @@ function ReferrerInboxCard({ item, act, pending }: {
               {item.seekerPhone && <p>Phone: <a className="text-gblue underline" href={`tel:${item.seekerPhone}`}>{item.seekerPhone}</a></p>}
             </div>
           )}
+          <p className="text-sm font-semibold text-referrer">Review and copy the referral packet before submitting it to your employer.</p>
           <Button
-            variant="outline"
             className="w-full"
             onClick={() => {
               setPacketPreviewOpen((open) => !open)
               setPacketCopyMessage('')
             }}
           >
-            {packetPreviewOpen ? 'Hide referral packet' : 'Preview referral packet'}
+            {packetPreviewOpen ? 'Hide referral packet' : 'Review and copy referral packet'}
           </Button>
           {packetPreviewOpen && (
             <div className="space-y-2 border-l-2 border-gblue pl-3">
@@ -197,7 +197,7 @@ function ReferrerInboxCard({ item, act, pending }: {
               </Button>
             </div>
           )}
-          <Button disabled={pending} className="w-full" onClick={() => act({ kind: 'submitted', requestId: item.requestId })}>Mark referral submitted</Button>
+          <Button variant="outline" disabled={pending} className="w-full" onClick={() => act({ kind: 'submitted', requestId: item.requestId })}>After your employer submission, mark referral submitted</Button>
         </div>
       )}
       {item.status === 'submitted' && <p className="text-sm text-muted">Waiting for the seeker to confirm your submission. Reminders sent: {item.remindersSent} of 3.</p>}
