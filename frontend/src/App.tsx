@@ -3,6 +3,7 @@ import { Award, Building2, LogOut, Moon, QrCode, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { api, fetchMe, type Me } from './api'
+import NotificationBell from './NotificationBell'
 import BadgePage from './pages/Badge'
 import CompaniesPage from './pages/Companies'
 import ProfilePage from './pages/Profile'
@@ -47,6 +48,7 @@ function Shell({ me, theme, toggleTheme }: { me: Me; theme: 'light' | 'dark'; to
       <header className="sticky top-0 z-10 flex items-center justify-between bg-page/80 px-5 py-4 backdrop-blur">
         <Logo />
         <div className="flex items-center gap-1">
+          <NotificationBell />
           <ThemeButton theme={theme} onToggle={toggleTheme} />
           <NavLink to="/profile" aria-label="Profile" className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-line/60">
             <Avatar name={me.name} size="sm" />

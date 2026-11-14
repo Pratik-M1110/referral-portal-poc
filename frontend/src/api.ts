@@ -173,3 +173,28 @@ export async function fetchMe(): Promise<Me | null> {
     throw e
   }
 }
+
+export type AppNotification = {
+  id: number
+  type: string
+  payload: Record<string, unknown>
+  read: boolean
+  createdAt: string
+}
+
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  return api<AppNotification[]>('/api/notifications')
+}
+
+export async function fetchUnreadCount(): Promise<number> {
+  const res = await api<{ count: number }>('/api/notifications/unread-count')
+  return res.count
+}
+
+export async function markNotificationRead(id: number): Promise<void> {
+  await api<void>(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api<void>('/api/notifications/read-all', { method: 'POST' })
+}
