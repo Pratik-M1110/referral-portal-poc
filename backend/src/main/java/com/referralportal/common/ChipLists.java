@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 /** Chip lists (skills, roles) are stored in MySQL JSON columns; the allowed characters make hand-built JSON safe. */
 public final class ChipLists {
 
-    private static final Pattern ALLOWED = Pattern.compile("[\\p{L}\\p{N} .+#/&-]{1,30}");
+    private static final Pattern ALLOWED = Pattern.compile("[\\p{L}\\p{N} .+#/&()\\-]{1,40}");
     private static final Pattern QUOTED = Pattern.compile("\"([^\"]*)\"");
 
     private ChipLists() {}
