@@ -3,7 +3,20 @@ export type ValidationResult =
   | { ok: false; error: string }
 
 const ALLOWED_CHARS = /^[A-Za-z\d /\-.+#&()]+$/
-const URL_RE = /https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|\.io\b/i
+const URL_SCHEME_RE = /https?:\/\/|www\./i
+// Tech names whose suffix looks like a domain TLD but are legitimate framework names.
+// Sorted longest-first so the regex engine tries the most specific alternative first.
+const TECH_NAME_ALLOWLIST = ['socket.io', 'asp.net', 'vb.net'] as const
+const TECH_NAMES_RE = new RegExp(
+  [...TECH_NAME_ALLOWLIST]
+    .sort((a, b) => b.length - a.length)
+    .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|'),
+  'gi',
+)
+// Domain-shaped token: starts with alnum, ends with a known TLD.
+// Lookbehind/lookahead prevent partial matches inside longer identifiers.
+const DOMAIN_TOKEN_RE = /(?<![a-z0-9-])[a-z0-9][a-z0-9-]*\.(com|org|net|io)(?![a-z0-9-])/i
 const EMAIL_RE = /@[a-z0-9.-]+\.[a-z]{2,}/i
 const HTML_RE = /<[^>]+>|&[a-z]+;/i
 const REPEAT3_RE = /(.)\1{2,}/
@@ -25,6 +38,14 @@ const PROFANITY = new Set([
   'cock', 'pussy', 'bastard', 'piss', 'twat', 'wank',
 ])
 
+// Vowelless mixed-case acronyms that are legitimate technology names.
+const VOWELLESS_ALLOWLIST = new Set(['grpc', 'trpc', 'rxjs', 'pnpm', 'mtls'])
+
+// Short tokens (≤3 chars) that are well-known language / platform names.
+// They skip only the min-length, min-letters, and vowel checks; all other
+// rules (URL, characters, duplicates, placeholder, profanity) still apply.
+const SHORT_TOKEN_ALLOWLIST = new Set(['c', 'r', 'c#', 'c++', 'f#', 's3', 'go'])
+
 function collapseWhitespace(s: string): string {
   return s.replace(/\s+/g, ' ').trim()
 }
@@ -34,9 +55,11 @@ function letterCount(s: string): number {
 }
 
 function hasNoVowels(s: string): boolean {
-  const letters = s.replace(/[^a-zA-Z]/g, '').toLowerCase()
+  const letters = s.replace(/[^a-zA-Z]/g, '')
   if (letters.length < 4) return false
-  return !/[aeiou]/.test(letters)
+  if (VOWELLESS_ALLOWLIST.has(s.toLowerCase())) return false
+  if (letters === letters.toUpperCase() && letters.length <= 5) return false
+  return !/[aeiouy]/.test(letters.toLowerCase())
 }
 
 export function validateCustomLookingFor(
@@ -45,11 +68,12 @@ export function validateCustomLookingFor(
   allKnownValues: string[],
 ): ValidationResult {
   const normalized = collapseWhitespace(raw)
+  const isShortToken = SHORT_TOKEN_ALLOWLIST.has(normalized.toLowerCase())
 
   if (!normalized) {
     return { ok: false, error: 'Please enter a valid role or skill, like "Site Reliability Engineer".' }
   }
-  if (normalized.length < 2) {
+  if (!isShortToken && normalized.length < 2) {
     return { ok: false, error: 'Must be at least 2 characters.' }
   }
   if (normalized.length > 40) {
@@ -59,7 +83,7 @@ export function validateCustomLookingFor(
   if (EMAIL_RE.test(normalized)) {
     return { ok: false, error: 'Email addresses are not allowed.' }
   }
-  if (URL_RE.test(normalized)) {
+  if (URL_SCHEME_RE.test(normalized) || DOMAIN_TOKEN_RE.test(normalized.replace(TECH_NAMES_RE, ''))) {
     return { ok: false, error: 'URLs are not allowed.' }
   }
   if (HTML_RE.test(normalized)) {
@@ -73,7 +97,7 @@ export function validateCustomLookingFor(
   if (!ALLOWED_CHARS.test(normalized)) {
     return { ok: false, error: 'Only letters, digits, spaces and / - + . # & ( ) are allowed.' }
   }
-  if (letterCount(normalized) < 2) {
+  if (!isShortToken && letterCount(normalized) < 2) {
     return { ok: false, error: 'Must contain at least 2 letters.' }
   }
   if (/^\d+$/.test(normalized) || /^[^A-Za-z]+$/.test(normalized)) {
@@ -96,7 +120,7 @@ export function validateCustomLookingFor(
       return { ok: false, error: 'Please enter a valid role or skill, like "Site Reliability Engineer".' }
     }
   }
-  if (hasNoVowels(normalized)) {
+  if (!isShortToken && hasNoVowels(normalized)) {
     return { ok: false, error: 'Please enter a valid role or skill, like "Site Reliability Engineer".' }
   }
 

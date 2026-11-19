@@ -184,3 +184,227 @@ describe('validateCustomLookingFor — invalid inputs', () => {
     expect(invalid('shit developer')).toBeTruthy()
   })
 })
+
+describe('validateCustomLookingFor — tech names with dot-TLD patterns (valid)', () => {
+  it('accepts ".NET Developer"', () => {
+    expect(valid('.NET Developer')).toBe('.NET Developer')
+  })
+
+  it('accepts "ASP.NET Engineer"', () => {
+    expect(valid('ASP.NET Engineer')).toBe('ASP.NET Engineer')
+  })
+
+  it('accepts "ASP.NET Core Developer"', () => {
+    expect(valid('ASP.NET Core Developer')).toBe('ASP.NET Core Developer')
+  })
+
+  it('accepts "VB.NET Developer"', () => {
+    expect(valid('VB.NET Developer')).toBe('VB.NET Developer')
+  })
+
+  it('accepts "Socket.IO"', () => {
+    expect(valid('Socket.IO')).toBe('Socket.IO')
+  })
+
+  it('accepts "Node.js Developer"', () => {
+    expect(valid('Node.js Developer')).toBe('Node.js Developer')
+  })
+
+  it('accepts "asp.net developer" (case-insensitive)', () => {
+    expect(valid('asp.net developer')).toBe('asp.net developer')
+  })
+})
+
+describe('validateCustomLookingFor — URL/domain inputs must still be rejected', () => {
+  it('rejects "google.com"', () => {
+    expect(invalid('google.com')).toMatch(/URL/)
+  })
+
+  it('rejects "www.example"', () => {
+    expect(invalid('www.example')).toMatch(/URL/)
+  })
+
+  it('rejects "example.io"', () => {
+    expect(invalid('example.io')).toMatch(/URL/)
+  })
+
+  it('rejects "foo.net"', () => {
+    expect(invalid('foo.net')).toMatch(/URL/)
+  })
+
+  it('rejects "my site.com"', () => {
+    expect(invalid('my site.com')).toMatch(/URL/)
+  })
+
+  it('rejects "mysite.io"', () => {
+    expect(invalid('mysite.io')).toMatch(/URL/)
+  })
+
+  it('rejects "http://x.y"', () => {
+    expect(invalid('http://x.y')).toMatch(/URL/)
+  })
+
+  it('rejects "https://example.org"', () => {
+    expect(invalid('https://example.org')).toMatch(/URL/)
+  })
+})
+
+describe('validateCustomLookingFor — common technology names (valid)', () => {
+  it('accepts "Node.JS"', () => {
+    expect(valid('Node.JS')).toBe('Node.JS')
+  })
+
+  it('accepts "Next.js"', () => {
+    expect(valid('Next.js')).toBe('Next.js')
+  })
+
+  it('accepts "Express.js"', () => {
+    expect(valid('Express.js')).toBe('Express.js')
+  })
+
+  it('accepts "Ember.js"', () => {
+    expect(valid('Ember.js')).toBe('Ember.js')
+  })
+
+  it('accepts "Vue.js"', () => {
+    expect(valid('Vue.js')).toBe('Vue.js')
+  })
+
+  it('accepts "React.js Developer"', () => {
+    expect(valid('React.js Developer')).toBe('React.js Developer')
+  })
+
+  it('accepts "D3.js"', () => {
+    expect(valid('D3.js')).toBe('D3.js')
+  })
+
+  it('accepts "HTML"', () => {
+    expect(valid('HTML')).toBe('HTML')
+  })
+
+  it('accepts "SCSS"', () => {
+    expect(valid('SCSS')).toBe('SCSS')
+  })
+
+  it('accepts "gRPC"', () => {
+    expect(valid('gRPC')).toBe('gRPC')
+  })
+
+  it('accepts "MVVM"', () => {
+    expect(valid('MVVM')).toBe('MVVM')
+  })
+
+  it('accepts "XSLT"', () => {
+    expect(valid('XSLT')).toBe('XSLT')
+  })
+
+  it('accepts "SQL"', () => {
+    expect(valid('SQL')).toBe('SQL')
+  })
+
+  it('accepts "AWS"', () => {
+    expect(valid('AWS')).toBe('AWS')
+  })
+
+  it('accepts "C++ Developer"', () => {
+    expect(valid('C++ Developer')).toBe('C++ Developer')
+  })
+
+  it('accepts "C#"', () => {
+    expect(valid('C#')).toBe('C#')
+  })
+
+  it('accepts "R"', () => {
+    expect(valid('R')).toBe('R')
+  })
+})
+
+describe('validateCustomLookingFor — still-rejected cases', () => {
+  it('rejects "bcdfgh" (no vowels)', () => {
+    expect(invalid('bcdfgh')).toBeTruthy()
+  })
+
+  it('rejects "asdf" (keyboard mash)', () => {
+    expect(invalid('asdf')).toBeTruthy()
+  })
+
+  it('rejects "qwerty" (keyboard mash)', () => {
+    expect(invalid('qwerty')).toBeTruthy()
+  })
+
+  it('rejects "google.com" (domain)', () => {
+    expect(invalid('google.com')).toMatch(/URL/)
+  })
+})
+
+describe('validateCustomLookingFor — additional accepted tech names', () => {
+  it('accepts "tRPC"', () => {
+    expect(valid('tRPC')).toBe('tRPC')
+  })
+
+  it('accepts "RxJS"', () => {
+    expect(valid('RxJS')).toBe('RxJS')
+  })
+
+  it('accepts "pnpm"', () => {
+    expect(valid('pnpm')).toBe('pnpm')
+  })
+
+  it('accepts "mTLS"', () => {
+    expect(valid('mTLS')).toBe('mTLS')
+  })
+
+  it('accepts "MySQL"', () => {
+    expect(valid('MySQL')).toBe('MySQL')
+  })
+
+  it('accepts "bcrypt"', () => {
+    expect(valid('bcrypt')).toBe('bcrypt')
+  })
+
+  it('accepts "F#"', () => {
+    expect(valid('F#')).toBe('F#')
+  })
+
+  it('accepts "C++" (bare)', () => {
+    expect(valid('C++')).toBe('C++')
+  })
+
+  it('accepts "S3"', () => {
+    expect(valid('S3')).toBe('S3')
+  })
+
+  it('accepts "Go"', () => {
+    expect(valid('Go')).toBe('Go')
+  })
+})
+
+describe('validateCustomLookingFor — extended rejection cases', () => {
+  it('rejects "a" (single letter, not an allowlisted token)', () => {
+    expect(invalid('a')).toBeTruthy()
+  })
+
+  it('rejects "x" (single letter, not an allowlisted token)', () => {
+    expect(invalid('x')).toBeTruthy()
+  })
+
+  it('rejects "1" (single digit)', () => {
+    expect(invalid('1')).toBeTruthy()
+  })
+
+  it('rejects "a++" (1 letter, not allowlisted)', () => {
+    expect(invalid('a++')).toBeTruthy()
+  })
+
+  it('rejects "x#" (1 letter, not allowlisted)', () => {
+    expect(invalid('x#')).toBeTruthy()
+  })
+
+  it('rejects "BCDFGH" (6 all-caps vowelless letters, exceeds short-token cap)', () => {
+    expect(invalid('BCDFGH')).toBeTruthy()
+  })
+
+  it('rejects "ASDF" (uppercase keyboard mash)', () => {
+    expect(invalid('ASDF')).toBeTruthy()
+  })
+})
