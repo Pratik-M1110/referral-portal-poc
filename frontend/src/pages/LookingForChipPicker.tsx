@@ -109,9 +109,11 @@ export function LookingForChipPicker({
   }
 
   const atMax = value.length >= MAX_LOOKING_FOR
-  const shownOptions = expanded ? bucketOptions : bucketOptions.slice(0, CHIPS_SHOWN_BY_DEFAULT)
+  const shownOptions = expanded
+    ? bucketOptions
+    : bucketOptions.filter((opt, i) => i < CHIPS_SHOWN_BY_DEFAULT || value.some((v) => norm(v) === norm(opt.value)))
   const hasMore = bucketOptions.length > CHIPS_SHOWN_BY_DEFAULT
-  const customValues = value.filter((v) => isCustomValue(v, bucketOptions))
+  const extraSelected = value.filter((v) => !bucketOptions.some((o) => norm(o.value) === norm(v)))
 
   return (
     <div>
@@ -139,7 +141,7 @@ export function LookingForChipPicker({
             </button>
           )
         })}
-        {customValues.map((v) => (
+        {extraSelected.map((v) => (
           <button
             key={v}
             type="button"

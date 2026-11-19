@@ -264,6 +264,41 @@ describe('LookingForChipPicker — case-insensitive toggle', () => {
   })
 })
 
+describe('LookingForChipPicker — out-of-bucket selected values', () => {
+  // 'Cloud' and 'Design' are in DEFAULT_LOOKING_FOR but NOT in the fresher bucket
+  it('renders known-but-out-of-bucket values as removable chips', () => {
+    setup({ experienceLevel: 'fresher', value: ['Cloud', 'Design'] })
+    expect(screen.getByText('Cloud')).toBeInTheDocument()
+    expect(screen.getByText('Design')).toBeInTheDocument()
+  })
+
+  it('clicking an out-of-bucket chip calls onChange without that value', () => {
+    const { onChange } = setup({ experienceLevel: 'fresher', value: ['Cloud', 'Design'] })
+    fireEvent.click(screen.getByText('Cloud'))
+    expect(onChange).toHaveBeenCalledWith(['Design'])
+  })
+
+  it('at MAX with out-of-bucket values, every selected value has a visible chip', () => {
+    // fresher bucket has 8 chips; 'Cloud', 'Design', 'Mobile' are known-not-in-fresher
+    const full = ['Frontend', 'Backend', 'Cloud', 'Design', 'Mobile', 'Full Stack']
+    setup({ experienceLevel: 'fresher', value: full })
+    for (const v of full) {
+      expect(screen.getByText(v)).toBeInTheDocument()
+    }
+  })
+
+  it('counter reflects out-of-bucket selections correctly', () => {
+    setup({ experienceLevel: 'fresher', value: ['Cloud', 'Design'] })
+    expect(screen.getByTestId('counter').textContent).toBe(`2 of ${MAX_LOOKING_FOR} selected`)
+  })
+
+  it('selected bucket option beyond cutoff is visible when collapsed', () => {
+    // 3-6 bucket: 'Tech Lead' is at index 9 (0-based), beyond the default cutoff of 8
+    setup({ experienceLevel: '3-6', value: ['Tech Lead'] })
+    expect(screen.getByText('Tech Lead')).toBeInTheDocument()
+  })
+})
+
 describe('LookingForChipPicker — custom input validation', () => {
   it('shows error for invalid custom input', () => {
     setup({ experienceLevel: 'student', value: [] })
