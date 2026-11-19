@@ -231,6 +231,39 @@ describe('LookingForChipPicker — experience change pruning', () => {
   })
 })
 
+describe('LookingForChipPicker — case-insensitive toggle', () => {
+  it('clicking "Frontend" chip with value ["frontend"] deselects (calls onChange with [])', () => {
+    const { onChange } = setup({ experienceLevel: 'student', value: ['frontend'] })
+    fireEvent.click(screen.getByText('Frontend'))
+    expect(onChange).toHaveBeenCalledWith([])
+  })
+
+  it('at MAX with "frontend" in value, clicking "Frontend" chip deselects (not a no-op)', () => {
+    const full = ['frontend', 'Backend', 'Full Stack', 'ML / AI', 'Data Analyst', 'Cybersecurity']
+    const { onChange } = setup({ experienceLevel: 'student', value: full })
+    fireEvent.click(screen.getByText('Frontend'))
+    expect(onChange).toHaveBeenCalledWith(['Backend', 'Full Stack', 'ML / AI', 'Data Analyst', 'Cybersecurity'])
+  })
+
+  it('removes only the differently-cased entry, leaving other selections intact', () => {
+    const { onChange } = setup({ experienceLevel: 'student', value: ['frontend', 'Backend'] })
+    fireEvent.click(screen.getByText('Frontend'))
+    expect(onChange).toHaveBeenCalledWith(['Backend'])
+  })
+
+  it('counter reflects selection count regardless of casing', () => {
+    setup({ experienceLevel: 'student', value: ['frontend', 'Backend'] })
+    expect(screen.getByTestId('counter').textContent).toBe(`2 of ${MAX_LOOKING_FOR} selected`)
+  })
+
+  it('at MAX with differently-cased value, selected-looking chip is not aria-disabled', () => {
+    const full = ['frontend', 'Backend', 'Full Stack', 'ML / AI', 'Data Analyst', 'Cybersecurity']
+    setup({ experienceLevel: 'student', value: full })
+    const frontendBtn = screen.getByText('Frontend').closest('button')
+    expect(frontendBtn).not.toHaveAttribute('aria-disabled')
+  })
+})
+
 describe('LookingForChipPicker — custom input validation', () => {
   it('shows error for invalid custom input', () => {
     setup({ experienceLevel: 'student', value: [] })

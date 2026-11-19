@@ -15,6 +15,8 @@ import { Button } from '../ui'
 const CHIPS_SHOWN_BY_DEFAULT = 8
 export const MAX_CUSTOM_PER_SESSION = 3
 
+const norm = (s: string) => s.toLowerCase()
+
 export function isCustomValue(v: string, bucketOptions: LookingForOption[]): boolean {
   const lv = v.toLowerCase()
   const inBucket = bucketOptions.some((o) => o.value.toLowerCase() === lv)
@@ -70,8 +72,8 @@ export function LookingForChipPicker({
   }, [experienceLevel])
 
   const toggle = (item: string) => {
-    if (value.includes(item)) {
-      onChange(value.filter((v) => v !== item))
+    if (value.some((v) => norm(v) === norm(item))) {
+      onChange(value.filter((v) => norm(v) !== norm(item)))
     } else if (value.length < MAX_LOOKING_FOR) {
       onChange([...value, item])
     }
@@ -115,7 +117,7 @@ export function LookingForChipPicker({
     <div>
       <div className="flex flex-wrap gap-2" data-testid="chip-list">
         {shownOptions.map((opt) => {
-          const on = value.some((v) => v.toLowerCase() === opt.value.toLowerCase())
+          const on = value.some((v) => norm(v) === norm(opt.value))
           const disabled = atMax && !on
           return (
             <button
