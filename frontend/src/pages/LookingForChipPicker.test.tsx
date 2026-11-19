@@ -41,6 +41,15 @@ describe('LookingForChipPicker — option lists', () => {
     expect(screen.getByText('Backend')).toBeInTheDocument()
   })
 
+  it.each(['constructor', 'toString', '__proto__'])(
+    'falls back to default options when experienceLevel is "%s"',
+    (level) => {
+      setup({ experienceLevel: level })
+      expect(screen.getByText('Frontend')).toBeInTheDocument()
+      expect(screen.getByText('Backend')).toBeInTheDocument()
+    },
+  )
+
   it('shows trending badge on trending chips', () => {
     setup({ experienceLevel: 'student' })
     // SDE Intern is trending — its button should contain a ↑ span
@@ -184,6 +193,32 @@ describe('LookingForChipPicker — experience change pruning', () => {
 
     // QA resolves to SDET / QA which IS in the fresher bucket
     expect(onChange).toHaveBeenCalledWith(['SDET / QA'])
+  })
+
+  it('keeps custom values matching inherited object property names', async () => {
+    const values = ['constructor', 'toString']
+    const { onChange, rerender, merged } = setup({
+      experienceLevel: 'student',
+      value: values,
+    })
+
+    await act(async () => {
+      rerender(
+        <LookingForChipPicker
+          {...merged}
+          experienceLevel="fresher"
+          value={values}
+        />
+      )
+    })
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('renders without throwing when value contains inherited property names', () => {
+    expect(() =>
+      setup({ experienceLevel: 'student', value: ['constructor', 'toString'] }),
+    ).not.toThrow()
   })
 
   it('does not call onChange when experience does not change', () => {

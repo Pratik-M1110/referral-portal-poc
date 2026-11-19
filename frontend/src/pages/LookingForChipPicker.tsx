@@ -44,7 +44,9 @@ export function LookingForChipPicker({
   const prevExpLevel = useRef<string>(experienceLevel)
 
   const bucketOptions: LookingForOption[] =
-    LOOKING_FOR_BY_EXPERIENCE[experienceLevel as ExperienceBucket] ?? DEFAULT_LOOKING_FOR
+    Object.prototype.hasOwnProperty.call(LOOKING_FOR_BY_EXPERIENCE, experienceLevel)
+      ? LOOKING_FOR_BY_EXPERIENCE[experienceLevel as ExperienceBucket]
+      : DEFAULT_LOOKING_FOR
 
   useEffect(() => {
     if (prevExpLevel.current === experienceLevel) return
