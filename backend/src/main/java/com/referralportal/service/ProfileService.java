@@ -19,6 +19,7 @@ import static com.referralportal.dto.ProfileDtos.ProfileView;
 public class ProfileService {
 
     private static final Set<String> LEVELS = Set.of("student", "fresher", "1-3", "3-6", "6+");
+    static final int MAX_ROLES = 6;
 
     @Autowired
     private UserService users;
@@ -36,7 +37,7 @@ public class ProfileService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pick an experience level.");
         }
         List<String> skills = ChipLists.clean(input.skills(), 12, "skills");
-        List<String> roles = ChipLists.clean(input.rolesWanted(), 6, "roles");
+        List<String> roles = ChipLists.clean(input.rolesWanted(), MAX_ROLES, "roles");
         profiles.save(user.id(), input, skills, roles);
         return Map.of("saved", true);
     }
