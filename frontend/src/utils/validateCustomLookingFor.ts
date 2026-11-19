@@ -38,8 +38,9 @@ const PROFANITY = new Set([
   'cock', 'pussy', 'bastard', 'piss', 'twat', 'wank',
 ])
 
-// Vowelless mixed-case acronyms that are legitimate technology names.
-const VOWELLESS_ALLOWLIST = new Set(['grpc', 'trpc', 'rxjs', 'pnpm', 'mtls'])
+// Vowelless acronyms / initialisms that are legitimate technology names.
+// Entries are lowercased; the check uses s.toLowerCase() so all case variants match.
+const VOWELLESS_ALLOWLIST = new Set(['grpc', 'trpc', 'rxjs', 'pnpm', 'mtls', 'html', 'scss', 'mvvm', 'xslt', 'htmx'])
 
 // Short tokens (≤3 chars) that are well-known language / platform names.
 // They skip only the min-length, min-letters, and vowel checks; all other
