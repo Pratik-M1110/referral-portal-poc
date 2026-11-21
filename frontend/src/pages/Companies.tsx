@@ -13,7 +13,7 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/api/me/profile') })
-  const { data: resumeInfo } = useQuery<ResumeInfo | null>({
+  const { data: resumeInfo, isPending: resumeInfoPending, isError: resumeInfoError } = useQuery<ResumeInfo | null>({
     queryKey: ['resume-info'],
     queryFn: async () => (await api<ResumeInfo | null>('/api/me/resume/info')) ?? null,
   })
@@ -22,10 +22,11 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
   const [seekerNote, setSeekerNote] = useState('')
   const [shareProfile, setShareProfile] = useState(true)
   const [sharePhone, setSharePhone] = useState(false)
+  const [shareResume, setShareResume] = useState(false)
   const create = useMutation({
     mutationFn: () => api('/api/referral-requests', {
       method: 'POST',
-      body: { companyId: company.id, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerPhone: sharePhone },
+      body: { companyId: company.id, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerPhone: sharePhone, shareSeekerResume: shareResume },
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['companies'] })
@@ -104,7 +105,14 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
               <span>Share my profile summary with verified referrers at {company.name} (experience, skills, role interests, and pitch).</span>
             </label>
             <p className="text-sm text-muted">Your sign-in email is shared only with employees who accept.</p>
-            {resumeInfo && <p className="text-sm text-muted">Your resume will be shared with verified referrers at {company.name}.</p>}
+            {resumeInfoPending && <p className="text-sm text-muted" role="status">Checking your resume…</p>}
+            {resumeInfoError && <p className="text-sm text-gred" role="alert">Could not verify resume status. Submission is unavailable until it is confirmed.</p>}
+            {resumeInfo && (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={shareResume} onChange={(event) => setShareResume(event.target.checked)} className="mt-1 accent-gblue" />
+                <span>Share my resume with verified referrers at {company.name}. It will be a snapshot of the resume uploaded now.</span>
+              </label>
+            )}
             {profile?.phoneNumber && (
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={sharePhone} onChange={(event) => setSharePhone(event.target.checked)} className="mt-1 accent-gblue" />
@@ -116,7 +124,7 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
           <ErrorNote message={create.error?.message ?? null} />
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={create.isPending || requestsLeft < 1 || !shareProfile} className="flex-1">
+            <Button type="submit" disabled={create.isPending || requestsLeft < 1 || !shareProfile || resumeInfoPending || resumeInfoError} className="flex-1">
               {create.isPending ? 'Sending…' : 'Send request'}
             </Button>
           </div>

@@ -389,7 +389,7 @@ class CompanyReferralRequestFlowTests {
         }
 
         @Test
-        void resumeIsAutomaticallyAvailableToInvitedReferrersBeforeAcceptance() {
+        void resumeSharingRequiresExplicitConsent() {
                 String suffix = UUID.randomUUID().toString().replace("-", "");
                 String seekerEmail = "resume-seeker-" + suffix + "@example.test";
                 String referrerEmail = "resume-referrer-" + suffix + "@example.test";
@@ -404,7 +404,7 @@ class CompanyReferralRequestFlowTests {
                         new MockMultipartFile("file", "candidate.pdf", "application/pdf", pdf));
 
                 SeekerRequest request = requests.create(authentication(seekerEmail, "Resume Seeker"),
-                        new CreateRequest(companyId, "Backend Engineer", "https://jobs.example.test/backend", "", true, false));
+                        new CreateRequest(companyId, "Backend Engineer", "https://jobs.example.test/backend", "", true, false, true));
 
                 assertTrue(requests.inbox(authentication(referrerEmail, "Resume Referrer")).stream()
                         .filter(item -> item.requestId() == request.id()).findFirst().orElseThrow().resumeAvailable());
@@ -421,14 +421,14 @@ class CompanyReferralRequestFlowTests {
                 assertEquals("candidate.pdf", originalSnapshot.getFilename());
                 assertArrayEquals(pdf, originalSnapshot.getData());
 
-                SeekerRequest automaticShareRequest = requests.create(authentication(seekerEmail, "Resume Seeker"),
-                        new CreateRequest(companyId, "Data Engineer", "https://jobs.example.test/data-engineer", "", true, false));
-                assertEquals("updated.pdf", resumes.downloadForReferrer(
-                        authentication(referrerEmail, "Resume Referrer"), automaticShareRequest.id()).getFilename());
+                SeekerRequest optOutRequest = requests.create(authentication(seekerEmail, "Resume Seeker"),
+                        new CreateRequest(companyId, "Data Engineer", "https://jobs.example.test/data-engineer", "", true, false, false));
+                assertFalse(requests.inbox(authentication(referrerEmail, "Resume Referrer")).stream()
+                        .filter(item -> item.requestId() == optOutRequest.id()).findFirst().orElseThrow().resumeAvailable());
 
-                requests.decline(authentication(referrerEmail, "Resume Referrer"), automaticShareRequest.id());
+                requests.decline(authentication(referrerEmail, "Resume Referrer"), optOutRequest.id());
                 ResponseStatusException declined = assertThrows(ResponseStatusException.class,
-                        () -> resumes.downloadForReferrer(authentication(referrerEmail, "Resume Referrer"), automaticShareRequest.id()));
+                        () -> resumes.downloadForReferrer(authentication(referrerEmail, "Resume Referrer"), optOutRequest.id()));
                 assertEquals(HttpStatus.FORBIDDEN, declined.getStatusCode());
 
                 resumes.delete(authentication(seekerEmail, "Resume Seeker"));
@@ -436,7 +436,7 @@ class CompanyReferralRequestFlowTests {
                         () -> resumes.downloadForReferrer(authentication(referrerEmail, "Resume Referrer"), request.id()));
                 assertEquals(HttpStatus.NOT_FOUND, removed.getStatusCode());
                 assertEquals(0, count("resume_files", "user_id = ?", seekerId));
-                assertEquals(0, count("referral_request_resumes", "request_id IN (?, ?)", request.id(), automaticShareRequest.id()));
+                assertEquals(0, count("referral_request_resumes", "request_id IN (?, ?)", request.id(), optOutRequest.id()));
         }
 
         @Test
@@ -454,7 +454,7 @@ class CompanyReferralRequestFlowTests {
                                 new byte[]{'%', 'P', 'D', 'F', '-', '1', '.', '7'}));
 
                 SeekerRequest request = requests.create(authentication(seekerEmail, "Retention Seeker"),
-                        new CreateRequest(companyId, "Engineer", "https://jobs.example.test/engineer", "", true, false));
+                        new CreateRequest(companyId, "Engineer", "https://jobs.example.test/engineer", "", true, false, true));
                 assertEquals(1, count("referral_request_resumes", "request_id = ?", request.id()));
 
                 jdbc.sql("UPDATE company_referral_requests SET status = 'expired', "

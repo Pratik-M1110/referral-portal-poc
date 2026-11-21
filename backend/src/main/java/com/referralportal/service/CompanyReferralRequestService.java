@@ -97,6 +97,9 @@ public class CompanyReferralRequestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Add a phone number to your profile before sharing it.");
         }
         ResumeFile uploadedResume = resumeFiles.findById(current.id()).orElse(null);
+        if (Boolean.TRUE.equals(input.shareSeekerResume()) && uploadedResume == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload a resume or choose not to share one.");
+        }
         boolean hasResume = uploadedResume != null;
         Company company = companies.findById(input.companyId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found."));
@@ -127,11 +130,11 @@ public class CompanyReferralRequestService {
         request.setShareProfile(true);
         request.setShareSeekerEmail(true);
         request.setShareSeekerPhone(Boolean.TRUE.equals(input.shareSeekerPhone()));
-        request.setShareSeekerResume(hasResume);
+        request.setShareSeekerResume(Boolean.TRUE.equals(input.shareSeekerResume()));
         request.setCreatedAt(now);
         request.setExpiresAt(now.plus(REQUEST_DAYS, ChronoUnit.DAYS));
         request = requests.save(request);
-        if (uploadedResume != null) {
+        if (Boolean.TRUE.equals(input.shareSeekerResume()) && uploadedResume != null) {
             ReferralRequestResume snapshot = new ReferralRequestResume();
             snapshot.setRequestId(request.getId());
             snapshot.setFilename(uploadedResume.getFilename());

@@ -17,7 +17,14 @@ public final class ReferralRequestDtos {
             @Pattern(regexp = "^https://\\S+$", message = "Use a valid https:// job link") String jobUrl,
             @Size(max = 1000) String seekerNote,
             @NotNull Boolean shareProfile,
-            @NotNull Boolean shareSeekerPhone) {}
+            @NotNull Boolean shareSeekerPhone,
+            @NotNull Boolean shareSeekerResume) {
+
+        public CreateRequest(Long companyId, String roleTitle, String jobUrl, String seekerNote,
+                Boolean shareProfile, Boolean shareSeekerPhone) {
+            this(companyId, roleTitle, jobUrl, seekerNote, shareProfile, shareSeekerPhone, false);
+        }
+    }
 
     public record AcceptRequest(@NotNull Boolean shareReferrerEmail, @NotNull Boolean shareReferrerPhone) {}
 
