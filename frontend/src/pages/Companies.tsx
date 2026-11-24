@@ -47,7 +47,7 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
           </div>
           <button type="button" onClick={onClose} aria-label="Close request form" className="rounded-full px-3 py-1 text-muted hover:bg-line/60">Close</button>
         </div>
-        <p className="mt-3 text-sm text-muted">Your request goes to employees who opted in at this company. Accepting means someone is willing to help; it does not guarantee an opening, referral, or interview.</p>
+        <p className="mt-3 text-sm text-muted">Your request goes to verified referrers at this company. Accepting means someone is willing to help; it does not guarantee an opening, referral, or interview.</p>
         <form
           className="mt-4 space-y-4"
           onSubmit={(event) => {
@@ -68,10 +68,11 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
             />
           </div>
           <div>
-            <label className="text-sm font-semibold" htmlFor="job-url">Job link <span className="font-normal text-muted">(optional)</span></label>
+            <label className="text-sm font-semibold" htmlFor="job-url">Job link</label>
             <input
               id="job-url"
               type="url"
+              required
               maxLength={500}
               value={jobUrl}
               onChange={(event) => setJobUrl(event.target.value)}
@@ -96,9 +97,12 @@ function ReferralRequestSheet({ company, requestsLeft, onClose }: {
             <legend className="px-1 text-sm font-bold">Information sharing</legend>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={shareProfile} onChange={(event) => setShareProfile(event.target.checked)} className="mt-1 accent-gblue" />
-              <span>Share my profile summary with invited referrers (experience, skills, role interests, and pitch).</span>
+              <span>Share my profile summary with verified referrers at {company.name} (experience, skills, role interests, and pitch).</span>
             </label>
             <p className="text-sm text-muted">Your sign-in email is shared only with employees who accept.</p>
+            <p className="text-sm text-muted">
+              By sending this request, you agree to share your uploaded resume with verified referrers at {company.name}.
+            </p>
             {profile?.phoneNumber && (
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={sharePhone} onChange={(event) => setSharePhone(event.target.checked)} className="mt-1 accent-gblue" />
@@ -134,7 +138,7 @@ export default function CompaniesPage() {
 
   return (
     <div>
-      <PageTitle title="Companies" subtitle="Ask for help from employees who have opted in to referring candidates." />
+      <PageTitle title="Companies" subtitle="Ask for help from verified referrers at their companies." />
       <div className="mb-4 flex flex-wrap gap-2">
         <Chip tone={0}>Wishlist {data.wishlistCount} of {data.wishlistMax}</Chip>
         <Chip tone={2}>{data.referralRequestsLeft} referral requests left</Chip>
@@ -143,7 +147,7 @@ export default function CompaniesPage() {
       </div>
       <ErrorNote message={toggle.error?.message ?? null} />
       {data.companies.length === 0 ? (
-        <EmptyState title="No companies are accepting requests yet" text="Check back when employees at more companies opt in to help with referrals." />
+        <EmptyState title="No companies have verified referrers yet" text="Check back when more employees verify their work email." />
       ) : (
         <div className="space-y-3">
           {data.companies.map((company) => (

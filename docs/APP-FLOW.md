@@ -89,11 +89,32 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
 
 **Tables touched:** `users` (insert/select), `badges` (insert on first login only).
 
-**MVP boundary:** LinkedIn sign-in is not implemented; Google and GitHub are supported.
+**Supported sign-in methods:** email/password, Google OAuth, and GitHub OAuth. LinkedIn sign-in is not planned for the MVP.
+
+## 2. Register with email and password
+
+**Flow:**
+1. The browser submits the name, email, and password. The backend normalizes the email, validates
+  the password, and applies registration rate limits. If the email can be registered, it stores a
+  pending-registration row with the password and OTP hashes, then emails a six-digit code. It does
+  not create a `users` row or session yet. The response is generic to avoid revealing whether an
+  account already exists.
+2. The code expires after ten minutes and permits at most five incorrect attempts. Resending a code
+  is rate limited; a new code replaces the previous pending registration for that email.
+3. The browser submits the email, code, and original password. The backend validates the code,
+  expiry, attempt count, and password match; it rechecks email uniqueness and only then creates
+  the password account and badge.
+4. After verification succeeds, the backend establishes the normal session. Existing Google/GitHub
+  accounts cannot be claimed through password signup because an unverified registration never
+  creates or links a user record.
+
+**Tables touched:** `pending_password_registrations` before verification, then `users` and `badges`
+after successful verification. V11 creates the pending-registration table; scheduled maintenance
+removes expired pending rows.
 
 ---
 
-## 2. Build / edit profile (seeker side)
+## 3. Build / edit profile (seeker side)
 
 **Where:** [Profile.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/Profile.tsx) →
 `PUT /api/me/profile` → [ProfileController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/ProfileController.java) →
@@ -112,7 +133,7 @@ Spring Security OAuth2 login → [UserService.java](/d:/GDG/Referral-Portal/back
    - `pitch`, `experienceLevel`
    - `skills`, `rolesWanted` — stored as **JSON arrays** (MySQL has no array type; there's a
      generated/functional index on `skills` for lookup)
-  - `githubUrl`, `linkedinUrl`, and optional `phoneNumber`
+  - `githubUrl`, `linkedinUrl`, `portfolioUrl`, and optional `phoneNumber`
    - `hideFromMyCompany` (boolean)
    - `seeker` defaults to `true` at row creation
 4.  Resume upload is not implemented. The `resume_files` table and `ResumeFile` entity define
@@ -130,7 +151,7 @@ respective company and referral services, not by profile save.
 
 ---
 
-## 3. Work-email verification (becoming a referrer)
+## 4. Work-email verification (becoming a referrer)
 
 **Where:** Verify-email card inside [Profile.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/Profile.tsx) →
 `POST /api/referrer/verify/start` and `/confirm` →
@@ -201,7 +222,7 @@ Runs in one DB transaction (`confirmInTransaction`):
 
 ---
 
-## 4. Companies list and wishlist
+## 5. Companies list and wishlist
 
 **Where:** [Companies.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/Companies.tsx) →
 `GET /api/companies`, `PUT/DELETE /api/wishlist/:companyId` →
@@ -213,7 +234,8 @@ Runs in one DB transaction (`confirmInTransaction`):
 - Returns companies with at least one verified employee who has opted in to referral requests.
   It excludes the seeker's own verified company and does not return employee names or identities.
 - Returns the seeker's wishlist count (maximum **5**) and separate company-referral request
-  allowance fields: base allowance **5 per rolling 30 days** plus available earned credits.
+  allowance fields: **2 base requests per rolling 30 days while unverified, 5 after work-email
+  verification**, plus available earned credits.
 - Marks each company `wishlisted: true/false` based on the caller's own `wishlists` rows.
 
 **Add to wishlist (`PUT /api/wishlist/:companyId`):**
@@ -234,7 +256,7 @@ Runs in one DB transaction (`confirmInTransaction`):
 
 ---
 
-## 5. Company referral requests
+## 6. Company referral requests
 
 The former per-employee meeting/chat entry points are removed from the frontend. Their
 controllers, endpoints, schema, and existing records are retained as legacy code. New referral
@@ -242,20 +264,22 @@ requests use a separate request/response lifecycle.
 
 **Create (`POST /api/referral-requests`):**
 - Any signed-in seeker with a profile can request a referral; work-email verification is not
-  required. The seeker chooses a company and free-form role title, may add an HTTPS job URL
-  and note, and explicitly consents to sharing their profile summary.
-- The company must have at least one verified, opted-in referrer. A seeker cannot request help
+  required. The seeker chooses a company and free-form role title, provides an HTTPS job URL,
+  may add a note, and explicitly consents to sharing their profile summary.
+- The company must have at least one verified referrer. A seeker cannot request help
   from their own verified company or submit another active request for the same company/role.
 - One company/role request counts once, regardless of how many employee responses it creates.
-  All currently opted-in employees at that company receive a pending response and email.
+  All verified referrers at that company receive a pending response and email.
 - The seeker's sign-in email is shared with employees who accept; it remains hidden from
   pending invitees. The seeker may choose whether to share their optional profile phone number.
+- If a resume is uploaded, it is included automatically. Invited verified referrers can download
+  its request-specific snapshot while their response is pending or accepted.
 - The request has a four-day response window. If nobody accepts, it expires and refunds the
   base allowance or restores the bonus credit that was consumed.
 
 **Employee inbox and decisions (`GET /api/referral-requests/inbox`, `POST /api/referral-requests/{id}/accept|decline`):**
-- Only verified employees who opted in for that company are invited and can respond. Role
-  preferences are informational; they do not filter the invitation list.
+- All verified referrers at the company are invited and can respond. Role preferences are
+  informational; they do not filter the invitation list.
 - Employees see the seeker name and the profile fields the seeker consented to share, but no
   contact fields before acceptance. Each employee can accept or decline independently; several
   employees may accept one request.
@@ -272,8 +296,10 @@ requests use a separate request/response lifecycle.
 - The seeker confirms the submission for that specific referrer. Confirmation can award that
   referrer one bonus request credit, at most two credits per rolling 30 days. Credits expire
   after 90 days. This referral allowance is separate from the legacy meeting budget.
-- Accepted but unsubmitted assignments trigger up to three work-email reminders, two days
-  apart. They close on day 10 and release the referrer's active-assignment capacity.
+- Accepted but unsubmitted assignments trigger work-email reminders at 24, 48, and 72 hours, then
+  close at 96 hours and release the referrer's active-assignment capacity. If other verified
+  referrers remain, the seeker can continue the request within four days; otherwise, or if the
+  seeker does not continue, the request expires and its credit is returned.
 
 **Tables touched:** `company_referral_requests`, `referral_request_responses`,
 `referral_request_credits`, `referrer_profiles`, `profiles`, `notifications`, `referrals`,
@@ -281,7 +307,7 @@ requests use a separate request/response lifecycle.
 
 ---
 
-## 6. Badge / QR
+## 7. Badge / QR
 
 **Where:** [Badge.tsx](/d:/GDG/Referral-Portal/frontend/src/pages/Badge.tsx) →
 `GET /api/me/badge` → [BadgeController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/BadgeController.java) →
@@ -302,7 +328,7 @@ to scan someone else's badge to open their profile.
 
 ---
 
-## 7. Referral tracking
+## 8. Referral tracking
 
 The Referrals screen shows both requests sent by the current seeker and requests assigned to
 the current referrer. The seeker sees pending/declined counts without the identities of
@@ -321,7 +347,7 @@ integration, candidate search, or resume upload is part of this flow.
 
 ---
 
-## 8. Account deletion
+## 9. Account deletion
 
 **Where:** `DELETE /api/me/account` → [AccountController.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/controller/AccountController.java) →
 [AccountService.java](/d:/GDG/Referral-Portal/backend/src/main/java/com/referralportal/service/AccountService.java) →
@@ -345,7 +371,7 @@ integration, candidate search, or resume upload is part of this flow.
 
 ---
 
-## 9. Admin panel
+## 10. Admin panel
 
 Not implemented. `users.is_admin` exists in the schema; no admin controller/service/UI exists
 yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bulk export).
@@ -362,7 +388,7 @@ yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bu
 | Work-email OTP verification, auto company creation from domain | ✅ Implemented |
 | Companies list with opted-in referrer availability, no employee names | ✅ Implemented |
 | Wishlist (max 5, no self-company) | ✅ Implemented |
-| Company referral requests (5 per 30 days, multiple opted-in referrers) | ✅ Implemented |
+| Company referral requests (one active referrer at a time; seeker can continue after timeout) | ✅ Implemented |
 | Referral accept/decline, active assignment capacity, contact consent | ✅ Implemented |
 | Submission confirmation, capped credits, expiry/refund | ✅ Implemented |
 | In-app invitation notifications and capped email reminders | ✅ Implemented |
@@ -379,4 +405,4 @@ yet (no stats endpoint, company/sponsor management, report queue, or badge/QR bu
 | Legacy meeting credit ledger | ⚠️ Unused; referral-request credits use separate expiring records |
 | Message retention job (30-90 days) | ❌ Not implemented |
 | Admin panel (stats, companies, sponsors, report queue, export) | ❌ Not implemented |
-| LinkedIn sign-in | ❌ Not currently supported; Google and GitHub sign-in are available |
+| LinkedIn sign-in | ❌ Not planned for MVP |

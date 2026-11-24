@@ -44,6 +44,9 @@ public class CompanyReferralRequest {
     @Column(name = "share_seeker_phone", nullable = false)
     private boolean shareSeekerPhone;
 
+    @Column(name = "share_seeker_resume", nullable = false)
+    private boolean shareSeekerResume;
+
     @Column(name = "base_charge", nullable = false)
     private boolean baseCharge = true;
 
@@ -125,6 +128,14 @@ public class CompanyReferralRequest {
 
     public void setShareSeekerPhone(boolean shareSeekerPhone) {
         this.shareSeekerPhone = shareSeekerPhone;
+    }
+
+    public boolean isShareSeekerResume() {
+        return shareSeekerResume;
+    }
+
+    public void setShareSeekerResume(boolean shareSeekerResume) {
+        this.shareSeekerResume = shareSeekerResume;
     }
 
     public boolean isBaseCharge() {

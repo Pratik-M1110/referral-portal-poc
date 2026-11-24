@@ -46,9 +46,6 @@ public class ReferrerProfile {
     @Column(name = "referral_limit", nullable = false)
     private short referralLimit = 10;
 
-    @Column(name = "accepts_referral_requests", nullable = false)
-    private boolean acceptsReferralRequests;
-
     @Column(name = "referral_role_preferences", columnDefinition = "json")
     private String referralRolePreferences = "[]";
 
@@ -121,14 +118,6 @@ public class ReferrerProfile {
 
     public void setReferralLimit(short referralLimit) {
         this.referralLimit = referralLimit;
-    }
-
-    public boolean isAcceptsReferralRequests() {
-        return acceptsReferralRequests;
-    }
-
-    public void setAcceptsReferralRequests(boolean acceptsReferralRequests) {
-        this.acceptsReferralRequests = acceptsReferralRequests;
     }
 
     public String getReferralRolePreferences() {

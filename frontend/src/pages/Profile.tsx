@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, type Me, type Profile as ProfileData, type ReferrerSettings } from '../api'
+import { api, deleteResume, downloadPdf, uploadResume, type Me, type Profile as ProfileData, type ReferrerSettings, type ResumeInfo } from '../api'
 import { Button, Card, Chip, ErrorNote, PageTitle, Spinner } from '../ui'
 
 const LOOKING_FOR = ['Frontend', 'Backend', 'Full Stack', 'Mobile', 'Data', 'ML / AI', 'DevOps', 'Cloud', 'QA', 'Design']
@@ -66,6 +66,10 @@ export default function ProfilePage({ me }: { me: Me }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { data, isPending } = useQuery({ queryKey: ['profile'], queryFn: () => api<ProfileData>('/api/me/profile') })
+  const { data: resumeInfo } = useQuery<ResumeInfo | null>({
+    queryKey: ['resume-info'],
+    queryFn: async () => (await api<ResumeInfo | null>('/api/me/resume/info')) ?? null,
+  })
   const { data: referrerSettings } = useQuery({
     queryKey: ['referrer-settings'],
     queryFn: () => api<ReferrerSettings>('/api/referrer/settings'),
@@ -76,7 +80,6 @@ export default function ProfilePage({ me }: { me: Me }) {
   const [verificationCode, setVerificationCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [referralLimit, setReferralLimit] = useState(10)
-  const [acceptsReferralRequests, setAcceptsReferralRequests] = useState(false)
   const [referralRolePreferences, setReferralRolePreferences] = useState<string[]>([])
 
   useEffect(() => {
@@ -87,7 +90,6 @@ export default function ProfilePage({ me }: { me: Me }) {
     if (!referrerSettings) return
     setWorkEmail(referrerSettings.workEmail ?? '')
     setReferralLimit(referrerSettings.referralLimit)
-    setAcceptsReferralRequests(referrerSettings.acceptsReferralRequests)
     setReferralRolePreferences(referrerSettings.referralRolePreferences)
   }, [referrerSettings])
 
@@ -102,6 +104,7 @@ export default function ProfilePage({ me }: { me: Me }) {
           rolesWanted: p.rolesWanted,
           githubUrl: p.githubUrl ?? '',
           linkedinUrl: p.linkedinUrl ?? '',
+          portfolioUrl: p.portfolioUrl ?? '',
           phoneNumber: p.phoneNumber ?? '',
           hideFromMyCompany: p.hideFromMyCompany,
         },
@@ -145,6 +148,20 @@ export default function ProfilePage({ me }: { me: Me }) {
     },
   })
 
+  const resumeUpload = useMutation({
+    mutationFn: (file: File) => uploadResume(file),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['resume-info'] })
+    },
+  })
+
+  const resumeDelete = useMutation({
+    mutationFn: () => deleteResume(),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['resume-info'] })
+    },
+  })
+
   const saveReferrerSettings = useMutation({
     mutationFn: () => api<ReferrerSettings>('/api/referrer/settings', {
       method: 'PUT',
@@ -152,7 +169,6 @@ export default function ProfilePage({ me }: { me: Me }) {
         openToMeet: referrerSettings?.openToMeet ?? false,
         slotCapacity: referrerSettings?.slotCapacity ?? 3,
         referralLimit,
-        acceptsReferralRequests,
         referralRolePreferences,
       },
     }),
@@ -222,8 +238,56 @@ export default function ProfilePage({ me }: { me: Me }) {
         <input id="gh" value={form.githubUrl ?? ''} onChange={(e) => set('githubUrl', e.target.value)} placeholder="https://github.com/you" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
         <label className="mt-3 block text-sm font-bold" htmlFor="li">LinkedIn</label>
         <input id="li" value={form.linkedinUrl ?? ''} onChange={(e) => set('linkedinUrl', e.target.value)} placeholder="https://linkedin.com/in/you" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
+        <label className="mt-3 block text-sm font-bold" htmlFor="portfolio">Portfolio <span className="font-normal text-muted">(optional)</span></label>
+        <input id="portfolio" type="url" maxLength={500} value={form.portfolioUrl ?? ''} onChange={(e) => set('portfolioUrl', e.target.value)} placeholder="https://your-portfolio.com" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
         <label className="mt-3 block text-sm font-bold" htmlFor="phone-number">Phone number <span className="font-normal text-muted">(optional)</span></label>
         <input id="phone-number" type="tel" maxLength={32} value={form.phoneNumber ?? ''} onChange={(e) => set('phoneNumber', e.target.value)} placeholder="+1 555 010 1234" className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-gblue" />
+      </Card>
+
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold">Resume</p>
+            {resumeInfo ? (
+              <p className="mt-1 text-sm text-muted">{resumeInfo.filename} · {Math.ceil(resumeInfo.sizeBytes / 1024)} KB</p>
+            ) : (
+              <p className="mt-1 text-sm text-muted">Upload a PDF resume, up to 5 MB.</p>
+            )}
+          </div>
+          {resumeInfo && (
+            <Button
+              variant="outline"
+              onClick={() => void downloadPdf('/api/me/resume', resumeInfo.filename)}
+            >
+              Download
+            </Button>
+          )}
+        </div>
+        <label className="mt-3 block text-sm font-semibold" htmlFor="resume-file">{resumeInfo ? 'Replace resume' : 'Upload resume'}</label>
+        <input
+          id="resume-file"
+          type="file"
+          accept="application/pdf,.pdf"
+          disabled={resumeUpload.isPending}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) resumeUpload.mutate(file)
+            event.target.value = ''
+          }}
+          className="mt-1 block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-gblue file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+        />
+        {resumeUpload.isPending && <p className="mt-2 text-sm text-muted">Uploading resume…</p>}
+        <ErrorNote message={resumeUpload.error?.message ?? resumeDelete.error?.message ?? null} />
+        {resumeInfo && (
+          <Button
+            variant="outline"
+            disabled={resumeDelete.isPending}
+            onClick={() => resumeDelete.mutate()}
+            className="mt-3 text-gred"
+          >
+            {resumeDelete.isPending ? 'Removing…' : 'Remove resume'}
+          </Button>
+        )}
       </Card>
 
       <Card>
@@ -245,17 +309,11 @@ export default function ProfilePage({ me }: { me: Me }) {
             </div>
             <Chip tone={3}>Verified</Chip>
           </div>
-          <label className="mt-4 flex items-start gap-3 text-sm">
-            <input type="checkbox" checked={acceptsReferralRequests} onChange={(event) => setAcceptsReferralRequests(event.target.checked)} className="mt-1 h-4 w-4 accent-ggreen" />
-            <span>
-              <span className="font-bold">Accept referral requests</span>
-              <span className="block text-muted">Opt in to requests from seekers at this company. Pause any time.</span>
-            </span>
-          </label>
+          <p className="mt-4 text-sm text-muted">You’ll receive referral requests from seekers applying to {referrerSettings.companyName}.</p>
           <div className="mt-4">
             <p className="mb-2 text-sm font-semibold">Areas you can help with <span className="font-normal text-muted">(optional)</span></p>
             <ChipPicker options={LOOKING_FOR} value={referralRolePreferences} onChange={setReferralRolePreferences} max={10} />
-            <p className="mt-1 text-xs text-muted">Requests still go to all opted-in employees at your company; these preferences help you assess fit.</p>
+            <p className="mt-1 text-xs text-muted">Requests go to all verified referrers at your company; these preferences help you assess fit.</p>
           </div>
           <label className="mt-3 block text-sm font-semibold" htmlFor="referral-limit">Maximum active referral assignments</label>
           <input id="referral-limit" type="number" min={1} max={10} value={referralLimit} onChange={(event) => setReferralLimit(Number(event.target.value))} className="mt-1 w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-ggreen" />

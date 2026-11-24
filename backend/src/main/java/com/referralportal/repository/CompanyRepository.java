@@ -31,7 +31,7 @@ public class CompanyRepository {
     }
 
     public List<CompanyView> findCompanies(long seekerId, Set<Long> wishlistedIds) {
-        return companies.findAllAcceptingReferralRequests().stream()
+        return companies.findAllWithVerifiedReferrers().stream()
             .filter(company -> !isVerifiedOwnCompany(seekerId, company.getId()))
             .map(company -> new CompanyView(company.getId(), company.getName(), company.getEmailDomain(),
                 company.isSponsor(), wishlistedIds.contains(company.getId())))

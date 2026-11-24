@@ -107,12 +107,12 @@ sequenceDiagram
     UI->>API: GET /api/me and profile
     Seeker->>UI: Complete profile; browse companies
     UI->>API: GET /api/companies
-    API->>DB: Find companies with verified, opted-in referrers
+    API->>DB: Find companies with verified referrers
     Seeker->>UI: Submit company + role + sharing choices
     UI->>API: POST /api/referral-requests
     API->>DB: Validate eligibility / allowance; save request and invite responses
     API->>DB: Save in-app notifications
-    API-->>Mail: Invite opted-in employees by email
+    API-->>Mail: Invite verified referrers by email
     Referrer->>UI: Accept or decline; choose contact-sharing
     UI->>API: POST /api/referral-requests/{id}/accept
     API->>DB: Save response and acceptance
@@ -124,10 +124,10 @@ sequenceDiagram
     API->>DB: Confirm and award eligible request credit
 ```
 
-Each referral request is for one company and role; it creates a response for each eligible
-opted-in employee. Referral acceptance and submission are tracked in the portal, but the
+Each referral request is for one company and role; it creates a response for each verified
+referrer at that company. Referral acceptance and submission are tracked in the portal, but the
 portal does not submit a candidate to the employer's hiring system. Request allowance,
-opt-in, work-email verification, assignment capacity, and per-request contact-sharing
+work-email verification, assignment capacity, and per-request contact-sharing
 consent are enforced by backend services.
 
 ## Data domains
@@ -142,6 +142,7 @@ erDiagram
     COMPANIES ||--o{ WISHLISTS : saved_by
     USERS ||--o{ COMPANY_REFERRAL_REQUESTS : creates
     COMPANIES ||--o{ COMPANY_REFERRAL_REQUESTS : receives
+    COMPANY_REFERRAL_REQUESTS ||--o| REFERRAL_REQUEST_RESUMES : snapshots
     COMPANY_REFERRAL_REQUESTS ||--o{ REFERRAL_REQUEST_RESPONSES : invites
     USERS ||--o{ REFERRAL_REQUEST_RESPONSES : responds
     REFERRAL_REQUEST_RESPONSES ||--o| REFERRAL_REQUEST_CREDITS : may_earn
@@ -179,6 +180,13 @@ erDiagram
         bigint company_id FK
         string role_title
         string status
+    }
+    REFERRAL_REQUEST_RESUMES {
+        bigint request_id PK,FK
+        string filename
+        string sha256
+        blob data
+        datetime uploaded_at
     }
     REFERRAL_REQUEST_RESPONSES {
         bigint id PK
@@ -223,10 +231,11 @@ implemented in the current UI.
 
 ## Cross-cutting behavior
 
-- **Authentication:** Google/GitHub OAuth creates an application session. API routes
-  require authentication; mutations use the CSRF token cookie/header pair.
-- **Work-email verification:** an employee verifies a work email by OTP before opting in
-  as a referrer. Verification and referral-request opt-in are separate actions.
+- **Authentication:** Google/GitHub OAuth creates an application session. Email/password
+    registration creates an account only after email OTP verification. API routes require
+    authentication; mutations use the CSRF token cookie/header pair.
+- **Work-email verification:** verifying a work email by OTP automatically enables the
+    employee to receive referral requests for that company.
 - **Notifications:** referral invitations and lifecycle events are persisted as in-app
   notifications; configured SMTP is used for invitations, reminders, and verification.
 - **Automation:** the backend periodically expires unanswered requests, refunds eligible

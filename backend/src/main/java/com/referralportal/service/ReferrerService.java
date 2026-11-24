@@ -121,7 +121,7 @@ public class ReferrerService {
         }
         List<String> referralRoles = ChipLists.clean(request.referralRolePreferences(), 10, "referral role preferences");
         referrers.updateSettings(user.id(), request.openToMeet(), request.slotCapacity(), request.referralLimit(),
-                request.acceptsReferralRequests(), referralRoles);
+            referralRoles);
         return referrers.settings(user.id());
     }
 

@@ -14,6 +14,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: none # Flyway owns the schema
+  servlet:
+    multipart:
+      max-file-size: 5MB # resume upload cap; enforced again in ResumeService
+      max-request-size: 6MB
   flyway:
     enabled: true
   mail:
@@ -43,6 +47,7 @@ spring:
 app:
   frontend-url: ${APP_FRONTEND_URL:/} # dev: http://localhost:5173
   mail-from: ${MAIL_FROM:}
+  resume-request-snapshot-retention-days: ${RESUME_REQUEST_SNAPSHOT_RETENTION_DAYS:30}
 
 server:
   port: ${PORT:8080}

@@ -14,7 +14,7 @@ public interface ReferrerProfileJpaRepository extends JpaRepository<ReferrerProf
 
     boolean existsByWorkEmailAndUserIdNot(String workEmail, Long userId);
 
-    List<ReferrerProfile> findByCompany_IdAndVerifiedAtIsNotNullAndReferrerTrueAndAcceptsReferralRequestsTrue(Long companyId);
+    List<ReferrerProfile> findByCompany_IdAndVerifiedAtIsNotNullAndReferrerTrue(Long companyId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select rp from ReferrerProfile rp where rp.userId = :userId")

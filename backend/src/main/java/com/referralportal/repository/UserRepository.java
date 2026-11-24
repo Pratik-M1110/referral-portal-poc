@@ -45,6 +45,23 @@ public class UserRepository {
         return user.getId();
     }
 
+    public long createPasswordAccount(String name, String email, String passwordHash, String qrToken) {
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setAuthProvider("password");
+        user.setPasswordHash(passwordHash);
+        user.setConsentAt(Instant.now());
+        user.setCreatedAt(Instant.now());
+        user = users.save(user);
+
+        Badge badge = new Badge();
+        badge.setUser(user);
+        badge.setQrToken(qrToken);
+        badges.save(badge);
+        return user.getId();
+    }
+
     public void deleteAccount(long userId) {
         conversations.deleteBySeekerIdOrReferrerId(userId);
         reviews.deleteByReferrerIdOrCandidateId(userId);

@@ -43,6 +43,9 @@ public class Profile {
     @Column(name = "linkedin_url", length = 300)
     private String linkedinUrl;
 
+    @Column(name = "portfolio_url", length = 500)
+    private String portfolioUrl;
+
     @Column(name = "phone_number", length = 32)
     private String phoneNumber;
 
@@ -118,6 +121,14 @@ public class Profile {
 
     public void setLinkedinUrl(String linkedinUrl) {
         this.linkedinUrl = linkedinUrl;
+    }
+
+    public String getPortfolioUrl() {
+        return portfolioUrl;
+    }
+
+    public void setPortfolioUrl(String portfolioUrl) {
+        this.portfolioUrl = portfolioUrl;
     }
 
     public String getPhoneNumber() {

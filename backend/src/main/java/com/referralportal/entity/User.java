@@ -30,6 +30,9 @@ public class User {
     @Column(name = "auth_provider", nullable = false, length = 20)
     private String authProvider;
 
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
     @Column(name = "is_admin", nullable = false)
     private boolean admin;
 
@@ -81,6 +84,14 @@ public class User {
 
     public void setAuthProvider(String authProvider) {
         this.authProvider = authProvider;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public boolean isAdmin() {

@@ -65,7 +65,7 @@ public class ReferralNotificationService {
     }
 
     @Transactional
-    public void reminder(ReferralRequestResponse response) {
+    public void reminder(ReferralRequestResponse response, boolean retryOnFailure) {
         CompanyReferralRequest request = response.getRequest();
         User referrer = response.getReferrer();
         save(referrer, "referral_reminder", Map.of("requestId", request.getId(), "responseId", response.getId(),
@@ -73,7 +73,7 @@ public class ReferralNotificationService {
         if (!"demo".equals(referrer.getAuthProvider())) {
             send(referrer.getReferrerProfile().getWorkEmail(), "Reminder: referral at " + request.getCompany().getName(),
                 "Your accepted referral request for " + request.getRoleTitle() + " is still awaiting an update.\n\n"
-                    + "Open Referral Portal: " + pageUrl());
+                    + "Open Referral Portal: " + pageUrl(), retryOnFailure);
         }
     }
 
@@ -106,6 +106,10 @@ public class ReferralNotificationService {
     }
 
     private void send(String to, String subject, String body) {
+        send(to, subject, body, false);
+    }
+
+    private void send(String to, String subject, String body, boolean retryOnFailure) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
         if (!mailFrom.isBlank()) {
@@ -116,6 +120,10 @@ public class ReferralNotificationService {
         try {
             mailSender.send(message);
         } catch (MailException exception) {
+            if (retryOnFailure) {
+                LOGGER.log(System.Logger.Level.WARNING, "Could not send a referral reminder; it will be retried.");
+                throw exception;
+            }
             LOGGER.log(System.Logger.Level.WARNING, "Could not send a referral notification email.", exception);
         }
     }

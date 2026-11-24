@@ -59,7 +59,7 @@ The normal team development setup uses the shared Aiven development database. In
 
 To use an isolated local database instead, keep the local database values from `.env.example` and start Docker Compose MySQL in the next section. Local Docker data is separate from Aiven and is persisted in a Docker volume.
 
-Google/GitHub OAuth and Brevo email credentials are not included. The app can start without them, but those sign-in and email flows will not work until configured. For local OAuth, register these callback URLs with the providers:
+Google/GitHub OAuth and Brevo email credentials are not included. The app can start without them, but those sign-in and email flows will not work until configured. Password registration also needs working email delivery to verify ownership before creating an account. For local OAuth, register these callback URLs with the providers:
 
 ```text
 http://localhost:8080/login/oauth2/code/google
@@ -68,13 +68,13 @@ http://localhost:8080/login/oauth2/code/github
 
 ## Referral workflow
 
-Anyone with a seeker profile can request a referral; work-email verification is not required to seek help. The Companies page shows companies with at least one verified employee who has opted in to referral requests, without listing employee identities. A seeker chooses a role title, may add a job link, and may add a note. Their profile summary and sign-in email are shared with invited employees according to the displayed consent rules; sign-in email is visible only to employees who accept.
+Anyone with a seeker profile can request a referral; work-email verification is not required to seek help. The Companies page shows companies with verified referrers, without listing employee identities. A seeker chooses a role title, provides an HTTPS job link, and may add a note. Their profile summary and sign-in email are shared with verified referrers who receive the request according to the displayed rules; sign-in email is visible only to employees who accept.
 
-One request covers one company and role, even when multiple employees accept. Every opted-in employee at that company receives an in-app request and an email. Employees can accept or decline; accepted employees can share their own contact fields by consent, then mark the referral submitted after using their company's internal process. A seeker confirms submission in the app. Acceptance does not guarantee an opening, completed referral, or interview.
+One request covers one company and role. Every verified referrer at that company receives it, but only one employee can accept at a time; other invitees see that someone else accepted. Employees can share their own contact fields by consent, then mark the referral submitted after using their company's internal process. A seeker confirms submission in the app. Acceptance does not guarantee an opening, completed referral, or interview.
 
-All users start with 5 requests per rolling 30 days. A submitted referral confirmed by the seeker can earn the referrer one extra request credit, up to 2 credits per 30 days; credits expire after 90 days. Requests with no acceptance expire after 4 days and return one request to the seeker's allowance. Accepted assignments receive up to 3 email reminders at 2-day intervals and close after day 10 if left unsubmitted.
+Unverified seekers start with 2 base requests per rolling 30 days. Verifying a company work email raises the base allowance to 5 total for that rolling period. Confirmed referrals can earn up to 2 additional credits per 30 days; credits expire after 90 days. Unaccepted requests expire after 4 days and return one request to the seeker's allowance. Accepted referrers receive daily reminders for 3 days; if they do not submit within 96 hours, the seeker can continue with another invited referrer for 4 days. If none remain or the seeker does not continue, the request expires and its credit is returned.
 
-Referrers must verify a work email, then separately opt in to receive requests. They can pause the opt-in, choose role-help preferences (informational only; requests still go to all opted-in employees), and set a cap of 1-10 active accepted assignments. Optional phone numbers are saved in the profile and shared only when each participant consents for that request. Resume upload is not implemented.
+Employees who verify a work email automatically receive referral requests for their company. They can choose role-help preferences (informational only; requests go to all verified referrers), and set a cap of 1-10 active accepted assignments. Optional phone numbers are saved in the profile and shared only when each participant consents for that request. If a seeker has uploaded a PDF resume, it is shared with the verified referrers invited to each request so they can review it before accepting.
 
 The app defaults to light theme. Use the Sun/Moon control to switch themes; the choice is saved in the current browser.
 
@@ -121,6 +121,125 @@ From the repository root:
 npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
+
+## GCP Cloud Run preparation
+
+Render and Aiven remain the development environment. The opt-in `cloudrun` Spring
+profile uses the Cloud SQL Java Connector; without this profile, the existing
+`DB_URL` configuration and local/Render behavior are unchanged. The Dockerfile
+packages the React frontend and backend into one service. Docker build context
+rules exclude dotenv files, including nested frontend files; never bake credentials
+or a development API origin into a production image.
+
+The initial GCP target is:
+
+| Resource | Value |
+| --- | --- |
+| Project | `referral-portal-production` |
+| Region | `asia-south1` (Mumbai) |
+| Artifact Registry repository | `referral-portal` |
+| Cloud SQL connection name | `referral-portal-production:asia-south1:referral-portal-prod-db` |
+| Database | `referral_portal` |
+| Database user | `referral_app` |
+| Runtime service account | `referral-portal-runtime@referral-portal-production.iam.gserviceaccount.com` |
+| Password secret | `referral-db-password` |
+
+Set these on Cloud Run, not in the development `.env`:
+
+| Environment variable | Value |
+| --- | --- |
+| `SPRING_PROFILES_ACTIVE` | `cloudrun` |
+| `CLOUD_SQL_INSTANCE` | The Cloud SQL connection name above |
+| `DB_NAME` | `referral_portal` |
+| `DB_USERNAME` | `referral_app` |
+| `DB_PASSWORD` | Secret reference to `referral-db-password`, version `1`; never a literal in a deploy command |
+| `APP_FRONTEND_URL` | The service's canonical HTTPS origin, without a trailing slash; update it if the production domain changes |
+
+Assign the runtime service account to the Cloud Run revision. It needs Cloud SQL
+Client on the project and Secret Manager Secret Accessor on this specific secret.
+The Java Connector uses the attached identity's Application Default Credentials
+and encrypts traffic to the database's public IP; no service-account JSON key,
+authorized network, VPC connector, separate proxy process, or Cloud Run Cloud SQL
+socket attachment is needed for this connection method. Do not copy the Cloud
+Shell `--get-server-public-key` option into the JDBC configuration. The profile
+uses lazy certificate refresh for request-based CPU allocation, up to five database
+connections per instance, and secure session cookies. It deliberately overrides
+`DB_URL` and requires an explicit frontend origin for OAuth redirects and email links;
+production serves the SPA on the same origin.
+
+### First deployment is a private smoke test, not a user launch
+
+- The initial smoke test required Cloud Run IAM authentication. The web service
+  was subsequently made public by user request for testing and the demo; the
+  maintenance job remains private. Do not invite volunteers before the gates below.
+- Start with request-based billing, minimum instances `0`, maximum instances `1`,
+  concurrency `20`, one vCPU, and `1 GiB` memory. Measure startup/memory before
+  increasing capacity. A single-instance maximum does not make sessions durable
+  or guarantee no overlapping instances during deployments.
+- Configure the startup probe for `/actuator/health` with enough startup time for
+  Spring Boot and Flyway. The first successful startup applies migrations to the
+  production database; it must not point at Aiven or contain development data.
+- Verify startup logs, authenticated access to `/actuator/health`, migration
+  history, and the SPA using an authenticated Cloud Run proxy before exposing it.
+- The production Cloud SQL connection, image build, OAuth, and real load must be
+  verified in GCP; local configuration tests alone do not prove deployment readiness.
+
+### Gates before real users
+
+See [the production follow-up list](docs/PRODUCTION-FOLLOW-UP.md) for postponed
+tasks, their reasons, and remaining verification.
+
+- **Sessions:** The `cloudrun` profile uses Spring Session JDBC with Flyway-managed
+  tables and secure cookies; other profiles retain their existing session behavior.
+  Test real Google and GitHub login across instances and revisions before autoscaling
+  or a user launch. Deploying this change invalidates existing in-memory sessions;
+  serialized session data can also require users to sign in again after upgrades or
+  rollback. Protect database access because sessions include authentication data.
+  Expired-session cleanup is disabled inside the web service and runs in the
+  maintenance job described below.
+- **Maintenance:** `cloudrun` disables the in-process referral-request scheduler.
+  Development retains the existing hourly timer. A separate Cloud Run job using
+  profiles `cloudrun,maintenance` runs expiry, refunds, reminders, stale-assignment
+  closure, and expired-session cleanup once and exits. Trigger it hourly with an
+  authenticated Cloud Scheduler job; do not make a public maintenance endpoint or
+  enable the timer on request-billed, scale-to-zero instances. The job and web
+  service must use compatible images and database migrations.
+  Each request is locked and rechecked before changes. Failed reminder emails roll
+  back their update and are retried on the next run; a retry after an uncertain SMTP
+  result can send a duplicate. Job failures need monitoring and alerts: Scheduler
+  can successfully start a job even if its later execution fails. Both a manual
+  Scheduler trigger and the first regular hourly run started successful executions;
+  failure alerts still need configuration and testing before user launch.
+- **Sign-in and mail:** provision separate production Google/GitHub OAuth and SMTP
+  secrets, grant access on each secret, register the actual HTTPS callbacks
+  `/login/oauth2/code/google` and `/login/oauth2/code/github`, and verify delivery
+  quotas. Placeholder credentials are not working sign-in. Never share secret
+  values in screenshots, chat, source, or deploy-command history.
+- **Operations:** test backup restore, backward-compatible migrations, rollback,
+  database connection usage, and realistic concurrent traffic. Database compute,
+  storage/backups, and other services can consume credit while the app is idle;
+  budget alerts are not a spending cap.
+  The backup restore drill is postponed: use a recent backup and restore to a
+  separate temporary instance, never over the production instance. Verify the
+  restored data and account for temporary instance and retained-backup costs.
+
+### Production maintenance operations
+
+The private Cloud Run service is `referral-portal`; the Cloud Run job is
+`referral-portal-maintenance`. Cloud Scheduler job
+`referral-portal-maintenance-hourly` invokes it hourly at the start of the hour
+in `Asia/Kolkata`, using the dedicated
+`referral-maintenance-invoker@referral-portal-production.iam.gserviceaccount.com`
+identity. Scheduler and task retries are disabled; failed reminders remain due for
+the next hourly run. Manually triggering the Scheduler or job can process real
+production records and send real emails.
+
+When releasing changes, update both the service and maintenance job to compatible,
+tested image versions; normally use the same immutable image digest. Consider
+database migration and rollback compatibility before either update. Check the
+Scheduler invocation **and** the resulting Cloud Run job execution and logs: a
+successful invocation only means the job was started. Configure and test alerts
+for failed Scheduler triggers and failed Cloud Run job executions before launch.
 
 ## Stop services
 

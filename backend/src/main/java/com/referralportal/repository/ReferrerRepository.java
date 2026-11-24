@@ -99,18 +99,17 @@ public class ReferrerRepository {
     public Settings settings(long userId) {
         return referrerProfiles.findById(userId)
                 .map(rp -> new Settings(rp.getVerifiedAt() != null, rp.getWorkEmail(), rp.getCompany().getName(),
-                rp.isOpenToMeet(), rp.getSlotCapacity(), rp.getReferralLimit(), rp.isAcceptsReferralRequests(),
+                rp.isOpenToMeet(), rp.getSlotCapacity(), rp.getReferralLimit(),
                 ChipLists.fromJson(rp.getReferralRolePreferences())))
-            .orElse(new Settings(false, null, null, false, 3, 10, false, List.of()));
+            .orElse(new Settings(false, null, null, false, 3, 10, List.of()));
     }
 
-        public void updateSettings(long userId, boolean openToMeet, int slotCapacity, int referralLimit,
-            boolean acceptsReferralRequests, List<String> referralRolePreferences) {
+    public void updateSettings(long userId, boolean openToMeet, int slotCapacity, int referralLimit,
+            List<String> referralRolePreferences) {
         referrerProfiles.findById(userId).filter(rp -> rp.getVerifiedAt() != null).ifPresent(rp -> {
             rp.setOpenToMeet(openToMeet);
             rp.setSlotCapacity((short) slotCapacity);
             rp.setReferralLimit((short) referralLimit);
-            rp.setAcceptsReferralRequests(acceptsReferralRequests);
             rp.setReferralRolePreferences(ChipLists.toJson(referralRolePreferences));
             referrerProfiles.save(rp);
         });

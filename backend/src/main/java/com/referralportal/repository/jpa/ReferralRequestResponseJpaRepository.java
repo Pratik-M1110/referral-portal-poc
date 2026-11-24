@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -37,18 +36,15 @@ public interface ReferralRequestResponseJpaRepository extends JpaRepository<Refe
             + "and rr.confirmedAt is not null and rr.confirmedAt >= :since")
     long countConfirmedSince(@Param("referrerId") long referrerId, @Param("since") Instant since);
 
-    @Query("select rr from ReferralRequestResponse rr join fetch rr.request r join fetch r.company join fetch r.seeker "
-            + "join fetch rr.referrer where rr.status = 'accepted' and rr.submittedAt is null "
+    @Query("select rr.request.id from ReferralRequestResponse rr where rr.id = :responseId")
+    Optional<Long> findRequestId(@Param("responseId") long responseId);
+
+    @Query("select rr.id from ReferralRequestResponse rr where rr.status = 'accepted' and rr.submittedAt is null "
             + "and rr.remindersSent < 3 and ((rr.remindersSent = 0 and rr.acceptedAt <= :dueBefore) "
-            + "or (rr.remindersSent > 0 and rr.lastRemindedAt <= :dueBefore))")
-    List<ReferralRequestResponse> findDueForReminder(@Param("dueBefore") Instant dueBefore);
+            + "or (rr.remindersSent > 0 and rr.lastRemindedAt <= :dueBefore)) order by rr.id")
+    List<Long> findDueForReminderIds(@Param("dueBefore") Instant dueBefore);
 
-    @Query("select rr from ReferralRequestResponse rr where rr.status = 'accepted' and rr.submittedAt is null "
-            + "and rr.acceptedAt <= :staleBefore")
-    List<ReferralRequestResponse> findStaleAccepted(@Param("staleBefore") Instant staleBefore);
-
-        @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("update ReferralRequestResponse rr set rr.status = 'closed', rr.closedAt = :closedAt "
-            + "where rr.status = 'accepted' and rr.submittedAt is null and rr.acceptedAt <= :staleBefore")
-    int closeStaleAccepted(@Param("staleBefore") Instant staleBefore, @Param("closedAt") Instant closedAt);
+    @Query("select rr.id from ReferralRequestResponse rr where rr.status = 'accepted' and rr.submittedAt is null "
+            + "and rr.acceptedAt <= :staleBefore order by rr.id")
+    List<Long> findStaleAcceptedIds(@Param("staleBefore") Instant staleBefore);
 }

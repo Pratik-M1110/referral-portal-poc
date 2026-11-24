@@ -14,8 +14,8 @@ public interface CompanyJpaRepository extends JpaRepository<Company, Long> {
 
     List<Company> findAllByOrderBySponsorDescNameAsc();
 
-    @Query("select distinct c from Company c join ReferrerProfile rp on rp.company = c "
-            + "where rp.verifiedAt is not null and rp.referrer = true and rp.acceptsReferralRequests = true "
+        @Query("select distinct c from Company c join ReferrerProfile rp on rp.company = c "
+            + "where rp.verifiedAt is not null and rp.referrer = true "
             + "order by c.sponsor desc, c.name asc")
-    List<Company> findAllAcceptingReferralRequests();
+        List<Company> findAllWithVerifiedReferrers();
 }

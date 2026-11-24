@@ -1,6 +1,7 @@
 package com.referralportal.service;
 
 import com.referralportal.repository.UserRepository;
+import com.referralportal.user.AppUserDetails;
 import com.referralportal.user.CurrentUser;
 import java.security.SecureRandom;
 import java.util.HexFormat;
@@ -26,6 +27,10 @@ public class UserService {
     @Autowired
     private TransactionTemplate tx;
     public CurrentUser current(Authentication auth) {
+        Object rawPrincipal = auth == null ? null : auth.getPrincipal();
+        if (rawPrincipal instanceof AppUserDetails user) {
+            return new CurrentUser(user.id(), user.name(), user.email(), "password");
+        }
         if (!(auth instanceof OAuth2AuthenticationToken token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }

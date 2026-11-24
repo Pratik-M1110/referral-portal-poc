@@ -14,6 +14,7 @@ export type Profile = {
   rolesWanted: string[]
   githubUrl: string | null
   linkedinUrl: string | null
+  portfolioUrl: string | null
   phoneNumber: string | null
   hideFromMyCompany: boolean
   exists: boolean
@@ -58,6 +59,9 @@ export type SeekerReferralRequest = {
   expiresAt: string
   pendingCount: number
   declinedCount: number
+  canContinueWithOtherReferrers: boolean
+  otherReferrerCount: number
+  creditReturned: boolean
   responses: SeekerResponse[]
 }
 
@@ -75,10 +79,12 @@ export type ReferralRequestInboxItem = {
   pitch: string | null
   githubUrl: string | null
   linkedinUrl: string | null
+  portfolioUrl: string | null
   seekerNote: string | null
   canSharePhone: boolean
   seekerEmail: string | null
   seekerPhone: string | null
+  resumeAvailable: boolean
   status: string
   createdAt: string
   acceptedAt: string | null
@@ -113,6 +119,13 @@ export type Referral = {
 
 export type Badge = { name: string; token: string }
 
+export type ResumeInfo = {
+  filename: string
+  contentType: string
+  sizeBytes: number
+  uploadedAt: string
+}
+
 export type ReferrerSettings = {
   verified: boolean
   workEmail: string | null
@@ -120,7 +133,6 @@ export type ReferrerSettings = {
   openToMeet: boolean
   slotCapacity: number
   referralLimit: number
-  acceptsReferralRequests: boolean
   referralRolePreferences: string[]
 }
 
@@ -165,6 +177,68 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+export async function uploadResume(file: File): Promise<void> {
+  const form = new FormData()
+  form.set('file', file)
+  const res = await fetch('/api/me/resume', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'X-XSRF-TOKEN': csrfToken() },
+    body: form,
+  })
+  if (!res.ok) {
+    let message = 'Could not upload the resume.'
+    try {
+      const data = await res.json()
+      if (data?.message) message = data.message
+    } catch {
+    }
+    throw new ApiError(res.status, message)
+  }
+}
+
+export async function deleteResume(): Promise<void> {
+  const res = await fetch('/api/me/resume', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'X-XSRF-TOKEN': csrfToken() },
+  })
+  if (!res.ok) {
+    let message = 'Could not remove the resume.'
+    try {
+      const data = await res.json()
+      if (data?.message) message = data.message
+    } catch {
+    }
+    throw new ApiError(res.status, message)
+  }
+}
+
+export async function downloadPdf(path: string, fallbackFilename: string): Promise<void> {
+  const res = await fetch(path, { credentials: 'include' })
+  if (!res.ok) {
+    let message = 'Could not download the PDF.'
+    try {
+      const data = await res.json()
+      if (data?.message) message = data.message
+    } catch {
+    }
+    throw new ApiError(res.status, message)
+  }
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const disposition = res.headers.get('Content-Disposition')
+  const filenameMatch = disposition?.match(/filename="?([^";]+)"?/i)
+  const filename = filenameMatch?.[1] ?? fallbackFilename
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
+}
+
 export async function fetchMe(): Promise<Me | null> {
   try {
     return await api<Me>('/api/me')
@@ -172,4 +246,29 @@ export async function fetchMe(): Promise<Me | null> {
     if (e instanceof ApiError && e.status === 401) return null
     throw e
   }
+}
+
+export type AppNotification = {
+  id: number
+  type: string
+  payload: Record<string, unknown>
+  read: boolean
+  createdAt: string
+}
+
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  return api<AppNotification[]>('/api/notifications')
+}
+
+export async function fetchUnreadCount(): Promise<number> {
+  const res = await api<{ count: number }>('/api/notifications/unread-count')
+  return res.count
+}
+
+export async function markNotificationRead(id: number): Promise<void> {
+  await api<void>(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api<void>('/api/notifications/read-all', { method: 'POST' })
 }

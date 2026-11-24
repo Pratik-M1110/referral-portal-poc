@@ -23,11 +23,10 @@ public final class ReferrerDtos {
             @NotNull Boolean openToMeet,
             @NotNull @Min(1) @Max(10) Integer slotCapacity,
             @NotNull @Min(1) @Max(10) Integer referralLimit,
-            @NotNull Boolean acceptsReferralRequests,
             @Size(max = 10) List<String> referralRolePreferences) {}
 
     public record Settings(boolean verified, String workEmail, String companyName, boolean openToMeet,
-            int slotCapacity, int referralLimit, boolean acceptsReferralRequests, List<String> referralRolePreferences) {}
+            int slotCapacity, int referralLimit, List<String> referralRolePreferences) {}
 
     public record VerificationStarted(boolean sent) {}
 }
