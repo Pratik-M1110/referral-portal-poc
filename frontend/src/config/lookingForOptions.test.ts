@@ -14,6 +14,10 @@ describe('resolveLegacyAliases — legacy mappings', () => {
     expect(resolveLegacyAliases(['QA Engineer'])).toEqual(['SDET / QA'])
   })
 
+  it('deduplicates values that resolve to the same alias', () => {
+    expect(resolveLegacyAliases(['QA', 'Backend', 'QA Engineer'])).toEqual(['SDET / QA', 'Backend'])
+  })
+
   it('leaves unknown values unchanged', () => {
     expect(resolveLegacyAliases(['Backend', 'Frontend'])).toEqual(['Backend', 'Frontend'])
   })

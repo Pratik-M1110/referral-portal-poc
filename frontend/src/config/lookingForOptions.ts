@@ -86,7 +86,7 @@ export const LEGACY_ALIAS: Record<string, string> = {
 }
 
 export function resolveLegacyAliases(values: string[]): string[] {
-  return values.map((v) => Object.prototype.hasOwnProperty.call(LEGACY_ALIAS, v) ? LEGACY_ALIAS[v] : v)
+  return Array.from(new Set(values.map((v) => Object.prototype.hasOwnProperty.call(LEGACY_ALIAS, v) ? LEGACY_ALIAS[v] : v)))
 }
 
 export function getAllKnownValues(): string[] {

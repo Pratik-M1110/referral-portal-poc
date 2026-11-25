@@ -8,10 +8,10 @@ const URL_SCHEME_RE = /https?:\/\/|www\./i
 // Sorted longest-first so the regex engine tries the most specific alternative first.
 const TECH_NAME_ALLOWLIST = ['socket.io', 'asp.net', 'vb.net'] as const
 const TECH_NAMES_RE = new RegExp(
-  [...TECH_NAME_ALLOWLIST]
+  `(?<![a-z0-9-])(?:${[...TECH_NAME_ALLOWLIST]
     .sort((a, b) => b.length - a.length)
     .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|'),
+    .join('|')})(?![a-z0-9-])`,
   'gi',
 )
 // Domain-shaped token: starts with alnum, ends with a known TLD.
@@ -56,11 +56,13 @@ function letterCount(s: string): number {
 }
 
 function hasNoVowels(s: string): boolean {
-  const letters = s.replace(/[^a-zA-Z]/g, '')
-  if (letters.length < 4) return false
-  if (VOWELLESS_ALLOWLIST.has(s.toLowerCase())) return false
-  if (letters === letters.toUpperCase() && letters.length <= 5) return false
-  return !/[aeiouy]/.test(letters.toLowerCase())
+  return s.split(/[^a-zA-Z0-9]+/).some((token) => {
+    const letters = token.replace(/[^a-zA-Z]/g, '')
+    if (letters.length < 4) return false
+    if (VOWELLESS_ALLOWLIST.has(token.toLowerCase())) return false
+    if (letters === letters.toUpperCase() && letters.length <= 5) return false
+    return !/[aeiouy]/.test(letters.toLowerCase())
+  })
 }
 
 export function validateCustomLookingFor(
@@ -129,7 +131,7 @@ export function validateCustomLookingFor(
     return { ok: false, error: 'Already selected.' }
   }
   if (allKnownValues.includes(lower)) {
-    return { ok: false, error: 'This option is already in the list — select it from the chips above.' }
+    return { ok: false, error: "This is a preset role or skill and can't be added as a custom value." }
   }
 
   return { ok: true, normalized }

@@ -173,7 +173,7 @@ describe('validateCustomLookingFor — invalid inputs', () => {
 
   it('rejects value present in known catalogue', () => {
     const error = invalid('frontend', noSelected, knownValues)
-    expect(error).toMatch(/list|already/i)
+    expect(error).toBe("This is a preset role or skill and can't be added as a custom value.")
   })
 
   it('rejects profane word', () => {
@@ -232,6 +232,11 @@ describe('validateCustomLookingFor — URL/domain inputs must still be rejected'
     expect(invalid('foo.net')).toMatch(/URL/)
   })
 
+  it('rejects domains containing an allowlisted technology name', () => {
+    expect(invalid('evilsocket.io')).toMatch(/URL/)
+    expect(invalid('myasp.net')).toMatch(/URL/)
+  })
+
   it('rejects "my site.com"', () => {
     expect(invalid('my site.com')).toMatch(/URL/)
   })
@@ -288,6 +293,11 @@ describe('validateCustomLookingFor — common technology names (valid)', () => {
 
   it('accepts "gRPC"', () => {
     expect(valid('gRPC')).toBe('gRPC')
+  })
+
+  it('accepts combinations of vowelless technology names', () => {
+    expect(valid('HTML / SCSS')).toBe('HTML / SCSS')
+    expect(valid('gRPC / mTLS')).toBe('gRPC / mTLS')
   })
 
   it('accepts "MVVM"', () => {
